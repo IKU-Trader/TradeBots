@@ -65,50 +65,9 @@ def MOM(ohlcv:dict, window):
 def APO(ohlcv:dict, fast, slow):
     return ta.APO(ohlcv[c.CLOSE], fastperiod=fast, slowperiod=slow, matype=0)
 
-def isNan(vector):
-    for v in vector:
-        if np.isnan(v):
-            return True
-    return False    
+ 
     
-def perfectOrder(ohlcv:dict, windows, is_ascend):
-    def inOrder(vector):
-        if isNan(vector):
-            return None    
-        before = None
-        for v in vector:
-            if before is None:
-                before = v
-            else:
-                if is_ascend:
-                    if v <= before:
-                        return False
-                else:
-                    if v >= before:
-                        return False
-            before = v
-        return True
-    
-    mas = []
-    for window in windows:
-        v = SMA(ohlcv, window)
-        mas.append(v)
-        
-    out = []
-    n = len(mas[0])
-    for i in range(n):
-        v = []
-        for j in range(len(mas)):
-            v.append(mas[j][i])
-        ret = inOrder(v)
-        if ret is None:
-            out.append(np.nan)
-        else:
-            if ret:
-                out.append(1)
-            else:
-                out.append(0)
-    return out         
+       
 
 def fillZero(array):
     for i in range(len(array)):
