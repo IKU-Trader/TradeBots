@@ -152,10 +152,10 @@ class CandlePlot:
     def drawCandle(self, time, ohlc, bar_width=None, timerange=None):    
         self.ax.set_title(self.title)
         n = len(time)
+        t0 = awarePyTime2Float(time[0])
+        t1 = awarePyTime2Float(time[-1])
         if bar_width is None:
-            v1 = awarePyTime2Float(time[0])
-            v2 = awarePyTime2Float(time[-1])
-            self.box_width = (v2 - v1 ) / n / 2.0
+            self.box_width = (t1 - t0 ) / n / 2.0
         else:
             self.box_width = bar_width
             
@@ -187,8 +187,13 @@ class CandlePlot:
         if vmin is not None and vmax is not None:
             dw = (vmax - vmin) * 0.05
             self.ylimit([vmin - dw, vmax + dw])
-            
-        self.ax.autoscale_view()
+        
+        if timerange is not None:
+            t0 = awarePyTime2Float(timerange[0])
+            t1 = awarePyTime2Float(timerange[1])
+        
+        self.ax.set_xlim(t0, t1)
+        #self.ax.autoscale_view()
         return
     
     def drawLine(self, time, value, color='red', linestyle='solid', linewidth=1.0, ylim=None, label=''):
@@ -251,13 +256,15 @@ class CandlePlot:
         self.ax.text(t, value, text, size=size)
         return
     
-    def xlimit(self, trange):
-        x0 = awarePyTime2Float(trange[0])
-        x1 = awarePyTime2Float(trange[1])
-        self.xrange = (x0, x1)
+    def xlimit(self, x):
+        self.ax.set_xlim(x[0], x[1])
+        self.ax.grid(True)
         
     def ylimit(self, yrange):
         self.ax.set_ylim(yrange[0], yrange[1])
+        
+    def getXlimit(self):
+        return self.ax.get_xlim()
         
 class BandPlot:
     def __init__(self, fig, ax, title, date_format=DATE_FORMAT_DAY_TIME):
@@ -340,9 +347,7 @@ class BandPlot:
         return     
     
     def xlimit(self, trange):
-        x0 = awarePyTime2Float(trange[0])
-        x1 = awarePyTime2Float(trange[1])
-        self.ax.set_xlim(x0, x1)
+        self.ax.set_xlim(trange[0], trange[1])
         
     def ylimit(self, yrange):
         self.ax.set_ylim(yrange[0], yrange[1])

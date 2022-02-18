@@ -28,6 +28,8 @@ class IndicatorConst:
         self.SMA = 'sma'
         self.EMA = 'ema'
         self.ADX = 'adx'
+        self.PLUS_DI = 'plus_di'
+        self.MINUS_DI = 'minus_di'
         self.ADXR = 'adxr'
         self.BBUP = 'bbup'
         self.BBDOWN = 'bbdown'
@@ -42,6 +44,8 @@ class IndicatorConst:
         self.APO = 'apo'
         self.ADXDMI = 'adxdmi'
         self.VQ = 'vq'
+        self.SAR = 'sar'
+        self.RCI = 'rci'
 
 class ParameterConst:
 # parameters
@@ -51,4 +55,6 @@ class ParameterConst:
         self.FAST = 'fast'
         self.SIGNAL = 'signal'
         self.SIGMA = 'sigma'
+        self.ACC = 'acc'
+        self.MAX = 'max'
 

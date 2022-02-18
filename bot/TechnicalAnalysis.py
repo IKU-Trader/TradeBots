@@ -47,6 +47,12 @@ def ADX(ohlcv:dict, window):
 def ADXR(ohlcv:dict, window):
     return ta.ADXR(ohlcv[c.HIGH], ohlcv[c.LOW], ohlcv[c.CLOSE], timeperiod=window)
 
+def PLUS_DI(ohlcv:dict, window):
+    ta.PLUS_DI(ohlcv[c.HIGH], ohlcv[c.LOW], ohlcv[c.CLOSE], timeperiod=window)
+    
+def MINUS_DI(ohlcv:dict, window):
+    ta.MINUS_DI(ohlcv[c.HIGH], ohlcv[c.LOW], ohlcv[c.CLOSE], timeperiod=window)
+    
 def AROON(ohlcv:dict, window):
     return ta.AROON(ohlcv[c.HIGH], ohlcv[c.LOW], timeperiod=window)
 
@@ -65,9 +71,23 @@ def MOM(ohlcv:dict, window):
 def APO(ohlcv:dict, fast, slow):
     return ta.APO(ohlcv[c.CLOSE], fastperiod=fast, slowperiod=slow, matype=0)
 
- 
-    
-       
+def SAR(ohlcv:dict, acc, maxv):
+    return ta.SAR(ohlcv[c.HIGH], ohlcv[c.LOW], acceleration=acc, maximum=maxv)
+
+def RCI(ohlcv:dict, window):
+    close = ohlcv[c.CLOSE]
+    n = len(close)
+    out = np.full(n, np.nan)
+    for i in range(n):
+        if (i + window)> n:
+            break
+        y = close[i:i + window]
+        x_rank = np.arange(len(y))
+        y_rank = rankdata(y, method='ordinal') - 1
+        sum_diff = sum((x_rank - y_rank)**2)
+        rci = (1 - ((6 * sum_diff) / (window**3 - window))) * 100
+        out.append(rci)
+    return out
 
 def fillZero(array):
     for i in range(len(array)):
@@ -148,7 +168,11 @@ class Indicator:
         if self.typ == t.TRANGE:
             return TRANGE(ohlcv)
         if self.typ == t.ADX:
-            return ADX(ohlcv, self.params[p.WINDOW])        
+            return ADX(ohlcv, self.params[p.WINDOW])
+        if self.typ == t.PLUS_DI:
+            return PLUS_DI(ohlcv, self.params[p.WINDOW])
+        if self.typ == t.MINUS_DI:
+            return MINUS_DI(ohlcv, self.params[p.WINDOW])       
         if self.typ == t.ADXR:
             return ADXR(ohlcv)
         if self.typ == t.AROON:
@@ -165,6 +189,10 @@ class Indicator:
             return APO(ohlcv, self.params[p.FAST], self.params[p.SLOW])
         if self.typ == t.VQ:
             return VQ(ohlcv)
+        if self.typ == t.SAR:
+            return SAR(ohlcv, self.params[p.ACC], self.params[p.MAX])
+        if self.typ == t.RCI:
+            return RCI(ohlcv, self.params[p.WINDOW])
         
     def description(self):
         out = "[" + self.name + "] " + self.typ + "  "

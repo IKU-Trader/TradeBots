@@ -120,21 +120,24 @@ def test():
     ohlc = buffer.array2graphShape(data, [c.OPEN, c.HIGH, c.LOW, c.CLOSE])
 
     (fig, axes) = gridFig([5, 4, 4], (15, 15))
+    fig.subplots_adjust(hspace=0.6, wspace=0.4)
     graph1 = CandlePlot(fig, axes[0], 'btcjpy')
-    graph1.xlimit((time[0], time[-1]))
     graph1.drawCandle(time, ohlc, timerange=(time[0], time[-1]))
+    graph1.xlimit((time[0], time[-1]))
+    
     
     ma5 = buffer.technical['MA20']
     
     bbr = buffer.technical['BBRATIO']
-    graph2 = BandPlot(fig, axes[1], 'bbratio')
+    graph2 = CandlePlot(fig, axes[1], 'bbratio')
     graph2.xlimit((time[0], time[-1]))
-    graph2.drawLine(time, bbr, color='red', timerange=(time[0], time[-1]))
+    graph2.drawLine(time, bbr, color='red')
     
     vq = buffer.technical['VQ']
-    graph3 = BandPlot(fig, axes[2], 'vq')
-    graph3.drawLine(time, vq, color='blue', timerange=(time[0], time[-1]))
+    graph3 = CandlePlot(fig, axes[2], 'vq')
     graph3.xlimit((time[0], time[-1]))
+    graph3.drawLine(time, vq, color='blue')
+
     
     
     
