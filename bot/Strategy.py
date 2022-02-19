@@ -8,7 +8,7 @@ Created on Fri Feb 11 16:50:07 2022
 import numpy as np
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
-from TechnicalAnalysis import SMA, RSI, movingAverage
+from TechnicalAnalysis import SMA, RSI, ATR, movingAverage
 from const import BasicConst, IndicatorConst, ParameterConst
 c = BasicConst()
 t = IndicatorConst()
@@ -99,6 +99,16 @@ def positiveEdge(vector):
     out = equal(dif, 1)
     return out
 
+def limitUnder(vector, value):
+    n = len(vector)
+    out = np.Zeros(n)
+    for i in range(n):
+        if vector[i] > value:
+            out[i] = value
+        else:
+            out[i] = vector[i]
+    return out
+
     
 # Trend following
 class PerfectOrder():
@@ -106,13 +116,13 @@ class PerfectOrder():
         self.windows = windows
         return
     
-    def long(self, ohlcv:dict):
-        v = self.perfectOrder(ohlcv, self.windows, True)
-        return positiveEdge(v)
-    
-    def short(self, ohlcv:dict):
-        v = self.perfectOrder(ohlcv, self.windows, False)       
-        return positiveEdge(v)
+    # return signal 1: order 0: not order
+    def marketOrder(self, ohlcv: dict):
+        sig1 = self.perfectOrder(ohlcv, self.windows, True)
+        long = positiveEdge(sig1)
+        sig2 = self.perfectOrder(ohlcv, self.windows, False)    
+        short = positiveEdge(sig2)
+        return (long, short)
     
     def inOrder(self, vector, is_ascend):
         if isNan(vector):
@@ -162,23 +172,42 @@ class RSICounter():
         self.upper = upper
         self.lower = lower
         
-
-    def long(self, ohlcv:dict):
+    # return signal 1: order 0: not order
+    def marketOrder(self, ohlcv:dict):
         rsi = RSI(ohlcv, self.rsi_window)
         ma_rsi = movingAverage(rsi, self.ma_window)
-        long = self.longSignal(rsi, ma_rsi)
-        return long
+        long = self.long(rsi, ma_rsi)
+        short = self.short(rsi, ma_rsi)
+        return (long, short)
         
-    def longSignal(self, rsi, rsi_ma):
+    def long(self, rsi, rsi_ma):
         v1 = greater(rsi, self.upper)
         v2 = crossOver(rsi, rsi_ma)
         out = logicalAnd(v1, v2)
         return out
         
-        
-        
+    def short(self, rsi, rsi_ma):
+        v1 = smaller(rsi, self.lower)
+        v2 = crossUnder(rsi, rsi_ma)
+        out = logicalAnd(v1, v2)
+        return out   
     
-
+        
+class ATRCounter():
+    def __init(self, atr_window, coeff):
+        self.atr_window = atr_window
+        self.coeff = coeff;
+        
+    # return order price
+    def limitOrder(self, ohlcv:dict):
+        close = ohlcv[c.CLOSE]
+        atr = ATR(ohlcv, self.atr_window)
+        atr = limitUnder(atr, 1.0)
+        upper = close + atr * self.coeff     
+        long_price = shift(upper, 1)
+        lower = close - atr * self.coeff
+        short_price = shift(lower, 1)
+        return (long_price, short_price)
 
 def test():
     return
