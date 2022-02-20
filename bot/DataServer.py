@@ -52,12 +52,14 @@ class BitflyData(DataServer):
         data[c.TIME] = time
         self.data = data
 
+    # begin, end : index
     def sliceData(self, begin, end):
         out = {}
         for key, value in self.data.items():
             out[key] = value[begin:end]
         return out
 
+    # rng: (begin, end)
     def dataRange(self, rng: range):
         begin = rng[0]
         end = rng[1]
