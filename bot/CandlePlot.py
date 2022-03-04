@@ -20,6 +20,22 @@ DATE_FORMAT_TIME = '%H:%M'
 DATE_FORMAT_DAY = '%m-%d'
 DATE_FORMAT_DAY_TIME = '%m-%d %H:%M'
 
+
+def array2graphShape(data:dict, keys):
+    if len(keys) == 1:
+        return data[keys[0]]
+    arrays = []
+    for key in keys:
+        arrays.append(data[key])
+    n = len(arrays[0])
+    out = []
+    for i in range(n):
+        v = []
+        for array in arrays:
+            v.append(array[i])
+        out.append(v)
+    return out  
+
 def makeFig(rows, cols, size):
     fig, ax = plt.subplots(rows, cols, figsize=(size[0], size[1]))
     return (fig, ax)
@@ -149,7 +165,8 @@ class CandlePlot:
         self.ax.xaxis.set_major_formatter(mdates.DateFormatter(date_format))
         pass
         
-    def drawCandle(self, time, ohlc, bar_width=None, timerange=None):    
+    def drawCandle(self, time, data:dict, keys, bar_width=None, timerange=None):    
+        ohlc = array2graphShape(data, keys) 
         self.ax.set_title(self.title)
         n = len(time)
         t0 = awarePyTime2Float(time[0])
@@ -166,7 +183,16 @@ class CandlePlot:
         vmax = None
         for i in range(n):
             t = time[i]
-            if timerange is not None:
+            if timerange is None:
+                if vmin is None:
+                    vmin = ohlc[i][2]
+                    vmax = ohlc[i][1]
+                else:
+                    if vmin > ohlc[i][2]:
+                        vmin = ohlc[i][2]
+                    if vmax < ohlc[i][1]:
+                        vmax = ohlc[i][1]
+            else:
                 if begin is None:
                     if t >= timerange[0]:
                         begin = i
@@ -197,9 +223,11 @@ class CandlePlot:
         return
     
     def drawLine(self, time, value, color='red', linestyle='solid', linewidth=1.0, ylim=None, label=''):
-        self.ax.plot(time, value, color=color, linestyle=linestyle, linewidth=linewidth, label=label)
+        tfloat = awarePyTimeList2Float(time)
+        self.ax.plot(tfloat, value, color=color, linestyle=linestyle, linewidth=linewidth, label=label)
         if ylim is not None:
             self.ax.set_ylim(ylim[0], ylim[1])
+        self.ax.set_xlim(tfloat[0], tfloat[-1])
         self.ax.grid(True)
         return
     

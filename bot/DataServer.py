@@ -4,6 +4,11 @@ Created on Sat Feb  5 21:44:01 2022
 
 @author: docs9
 """
+
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), './'))
+
 import pandas as pd
 from datetime import datetime
 from const import BasicConst 

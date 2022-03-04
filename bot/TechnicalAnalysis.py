@@ -7,6 +7,7 @@ Created on Thu Feb 10 14:20:18 2022
 
 import numpy as np
 import pandas as pd
+from scipy.stats import rankdata
 from const import BasicConst, IndicatorConst, ParameterConst
 import talib as ta
 
@@ -50,8 +51,14 @@ def BBRATIO(ohlcv: dict, window, sigma, key=c.CLOSE):
     ratio = level / width
     return ratio
 
+def BETA(ohlcv: dict, window):
+    return ta.BETA(ohlcv[c.HIHG], ohlcv[c.LOW], timeperiod=window)
+
 def CCI(ohlcv:dict, window):
     return ta.CCI(ohlcv[c.HIGH], ohlcv[c.LOW], ohlcv[c.CLOSE], timeperiod=window)
+
+def DEMA(ohlcv:dict, window):
+    return ta.DEMA(ohlcv[c.close], timeperiod=window)
 
 def DI_PLUS(ohlcv:dict, window):
     return ta.PLUS_DI(ohlcv[c.HIGH], ohlcv[c.LOW], ohlcv[c.CLOSE], timeperiod=window)
@@ -65,11 +72,44 @@ def DX(ohlcv:dict, window):
 def EMA(ohlcv: dict, window, key=c.CLOSE):
     return ta.EMA(ohlcv[key], timeperiod=window)  
 
+def HT_DC_PERIOD(ohlcv: dict):
+    return ta.HT_DCPERIOD(ohlcv[c.CLOSE])
+
+def HT_DC_PHASE(ohlcv: dict):
+    return ta.HT_DCPHASE(ohlcv[c.CLOSE])
+
+def HT_PHASOR(ohlcv: dict):
+    return ta.HT_PHASOR(ohlcv[c.CLOSE])
+
+def HT_TRENDMODE(ohlcv: dict):
+    return ta.HT_TRENDMODE(ohlcv[c.CLOSE])
+
+def HT_TRENDLINE(ohlcv: dict):
+    return ta.HT_TRENDLINE(ohlcv[c.CLOSE])
+
+def KAMA(ohlcv: dict, window):
+    return ta.KAMA(ohlcv[c.CLOSE], timeperiod=window)
+
+def LINEARREG(ohlcv: dict, window):
+    return ta.LINEARREG(ohlcv[c.CLOSE], timeperiod=window) - ohlcv[c.CLOSE]
+
+def LINEARREG_ANGLE(ohlcv: dict, window):
+    return ta.LINEARREG_ANGLE(ohlcv[c.CLOSE], timeperiod=window)
+
+def LINEARREG_INTERCEPT(ohlcv: dict, window):
+    return ta.LINEARREG_INTERCEPT(ohlcv[c.CLOSE], timeperiod=window)
+
+def LINEARREG_SLOPE(ohlcv: dict, window):
+    return ta.LINEARREG_SLOPE(ohlcv[c.CLOSE], timeperiod=window)
+
 def MACD(ohlcv:dict, fast, slow, signal):
     return ta.MACD(ohlcv[c.CLOSE], fastperiod=fast, slowperiod=slow, signalperiod=signal)
 
 def MFI(ohlcv:dict, window):
     return ta.MFI(ohlcv[c.HIGH], ohlcv[c.LOW], ohlcv[c.CLOSE], ohlcv[c.VOLUME], timeperiod=window)
+
+def MIDPOINT(ohlcv:dict, window):
+    return ta.MIDPOINT(ohlcv[c.CLOSE], timeperiod=window)
 
 def MOM(ohlcv:dict, window):
     return ta.MOM(ohlcv[c.CLOSE], timeperiod=window)
@@ -107,9 +147,24 @@ def STOCHASTIC(ohlcv: dict, fastk, slowk, slowd):
 def STOCHASTICFAST(ohlcv: dict, fastk, fastd):
     return ta.STOCHF(ohlcv[c.HIGH], ohlcv[c.LOW], ohlcv[c.CLOSE], fastk_window = fastk, fastk_matype=0, fastd_window=fastd, fastd_matype=0)
 
+def T3(ohlcv: dict, window, vfactor=0):
+    return ta.T3(ohlcv[c.CLOSE], timeperiod=window, vfactor=vfactor) + (ohlcv[c.HIGH] + ohlcv[c.LOW]) / 2
+
+def TEMA(ohlcv: dict, window):
+    return ta.TEMA(ohlcv[c.CLOSE], timeperiod=window)
+                    
+def TRIMA(ohlcv: dict, window):
+    return ta.TRIMA(ohlcv[c.CLOSE], timeperiod=window)
+  
+def TRIX(ohlcv: dict, window):
+    return ta.TRIX(ohlcv[c.CLOSE], timeperiod=window)
+
 def TRANGE(ohlcv:dict):
     return ta.TRANGE(ohlcv[c.HIGH], ohlcv[c.LOW], ohlcv[c.CLOSE])
     
+def ULTOSC(ohlcv:dict, fast, mid, slow):
+    return ta.ULTOSC(ohlcv[c.HIGH], ohlcv[c.LOW], ohlcv[c.CLOSE], timeperiod1=fast, timeperiod2=mid, timeperiod3=slow)
+
 def VQ(ohlcv: dict):
     trange = TRANGE(ohlcv)
     high = ohlcv[c.HIGH]
@@ -132,6 +187,11 @@ def VQ(ohlcv: dict):
         s += q[i]
         vq[i] = s
     return vq
+
+def WILLR(ohlcv: dict, window):
+    return ta.WILLR(ohlcv[c.HIGH], ohlcv[c.LOW], ohlcv[c.CLOSE], timeperiod=window)
+
+
 
 def fillZero(array):
     for i in range(len(array)):
@@ -234,12 +294,54 @@ class Indicator:
         if self.typ == t.STOCHASTIC_SLOWK:
             slowk, slowd = STOCHASTIC(ohlcv, self.params[p.FASTK], self.params[p.SLOWK], self.params[p.SLOWD])
             return slowk
-        if self.typ == t.STOCHASTICF_FASTK:
+        if self.typ == t.STOCHASTIC_FASTK:
             fastk, fastd = STOCHASTIC(ohlcv, self.params[p.FASTK], self.params[p.FASTD])
             return fastk
-        if self.typ == t.STOCHASTICF_FASTD:
-            fastk, fastd = STOCHASTIC(ohlcv, self.params[p.FASTK], self.params[p.FASTD])
+        if self.typ == t.STOCHASTIC_FASTD:
+            fastk, fastd = STOCHASTICFAST(ohlcv, self.params[p.FASTK], self.params[p.FASTD])
             return fastd
+        if self.typ == t.ULTOSC:
+            return ULTOSC(ohlcv, self.params[p.FAST], self.params[p.MID], self.params[p.SLOW])
+        if self.typ == t.WILLR:
+            return WILLR(ohlcv, self.params[p.WINDOW])
+        if self.typ == t.HT_DC_PERIOD:
+            return HT_DC_PERIOD(ohlcv)
+        if self.typ == t.HT_DC_PHASE:
+            return HT_DC_PHASE(ohlcv)
+        if self.typ == t.HT_PHASOR_INPHASE:
+            inphase, quadrature = HT_PHASOR(ohlcv)
+            return inphase
+        if self.typ == t.HT_PHASOR_QuADRATURE:
+            inphase, quadrature = HT_PHASOR(ohlcv)
+            return quadrature
+        if self.typ == t.HT_TRENDMODE:
+            return HT_TRENDMODE(ohlcv)
+        if self.typ == t.HT_TRENDLINE:
+            return HT_TRENDLINE(ohlcv)
+        if self.typ == t.BETA:
+            return BETA(ohlcv)
+        if self.typ == t.LINEARREG:
+            return LINEARREG(ohlcv, self.params[p.WINDOW])
+        if self.typ == t.LINEARREG_ANGLE:
+            return LINEARREG_ANGLE(ohlcv, self.params[p.WINDOW])
+        if self.typ == t.LINEARREG_INTERCPT:
+            return LINEARREG_INTERCEPT(ohlcv, self.params[p.WINDOW])
+        if self.typ == t.LINEARREG_SLOPE:
+            return LINEARREG_SLOPE(ohlcv, self.params[p.WINDOW])
+        if self.typ == t.DEMA:
+            return DEMA(ohlcv, self.params[p.WINDOW])
+        if self.typ == t.KAMA:
+            return KAMA(ohlcv, self.params[p.WINDOW])
+        if self.typ == t.MIDPOINT:
+            return MIDPOINT(ohlcv, self.params[p.WINDOW])
+        if self.typ == t.T3:
+            return T3(ohlcv, self.params[p.WINDOW])
+        if self.typ == t.TEMA:
+            return TEMA(ohlcv, self.params[p.WINDOW])
+        if self.typ == t.TRIMA:
+            return TRIMA(ohlcv, self.params[p.WINDOW])
+        if self.typ == t.TRIX:
+            return TRIX(ohlcv, self.params[p.WINDOW])        
         
     def description(self):
         out = "[" + self.name + "] " + self.typ + "  "
