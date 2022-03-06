@@ -63,7 +63,8 @@ def isNan(vector):
     for v in vector:
         if np.isnan(v):
             return True
-    return False   
+    return False
+
 
 def RegisterSupportPrice(array, n):
     X = []
@@ -87,7 +88,7 @@ def shift(vector, offset):
 
 def equal(vector, value):
     n = len(vector)
-    out = np.Zeros(n)
+    out = np.zeros(n)
     for i in range(n):
         if vector[i] == value:
             out[i] = 1
@@ -101,7 +102,7 @@ def positiveEdge(vector):
 
 def limitUnder(vector, value):
     n = len(vector)
-    out = np.Zeros(n)
+    out = np.zeros(n)
     for i in range(n):
         if vector[i] > value:
             out[i] = value
@@ -109,9 +110,54 @@ def limitUnder(vector, value):
             out[i] = vector[i]
     return out
 
+class Position:
+    def __init__(self, kind):
+        self.is_open = False
+        self.time_open = None
+        self.time_close = None
+        self.lot = None
+        self.price_open = None
+        self.price_close = None
+        self.profit = None
+        self.kind = kind
+        pass
+    
+    def judgeOpen(self, time, open, high, low, close, kind, price, lot):
+        if self.is_open is not None:
+            return
+        
+        if kind == c.LONG:
+            if high < price:
+                return
+        else:
+            if low < price:
+                return
+        self.time_open = time
+        self.lot = lot
+        self.price_open = price
+        self.is_open = True
+        
+    def judgeClose(self, time, open, high, low, close, price):
+        if self.is_open != True:
+            return
+        
+        if self.kind == c.LONG:
+            if high < price:
+                return
+        else:
+            if low < price:
+                return    
+        self.time_close = time
+        self.price_close = price
+        self.profit = self.price_close - self.price_open
+        if self.kind == c.SHORT:
+            self.profit *= -1
+        self.is_open = False
+    
+
     
 # Trend following
-class PerfectOrder():
+class PerfectOrder:
     def __init__(self, windows):
         self.windows = windows
         return
@@ -164,7 +210,7 @@ class PerfectOrder():
     
 
 # Counter Trend
-class RSICounter():
+class RSICounter:
     
     def __init__(self, rsi_window, ma_window, upper, lower):
         self.rsi_window = rsi_window
@@ -192,22 +238,32 @@ class RSICounter():
         out = logicalAnd(v1, v2)
         return out   
     
-        
-class ATRCounter():
-    def __init(self, atr_window, coeff):
-        self.atr_window = atr_window
+    
+class ATRCounterPosition(Position):
+
+
+    
+class ATRCounter:
+    def __init__(self, coeff):
         self.coeff = coeff;
         
+    
+        
     # return order price
-    def limitOrder(self, ohlcv:dict):
+    def limitOrder(self, ohlcv:dict, atr):
         close = ohlcv[c.CLOSE]
-        atr = ATR(ohlcv, self.atr_window)
-        atr = limitUnder(atr, 1.0)
+        #atr = limitUnder(atr, 1.0)
         upper = close + atr * self.coeff     
         long_price = shift(upper, 1)
         lower = close - atr * self.coeff
         short_price = shift(lower, 1)
         return (long_price, short_price)
+    
+    def simulateLongEveryBar(self, ohlcv:dict, price):
+        
+        
+        
+        
 
 def test():
     return

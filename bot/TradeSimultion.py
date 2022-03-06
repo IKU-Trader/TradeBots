@@ -6,7 +6,7 @@ Created on Sun Feb  6 12:30:54 2022
 """
 
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 jp = pytz.timezone('Asia/Tokyo')
 
@@ -16,6 +16,7 @@ from StubAPI import StubAPI
 from const import BasicConst, IndicatorConst, ParameterConst
 from TechnicalAnalysis import Indicator
 from CandlePlot import CandlePlot, BandPlot, makeFig, gridFig, array2graphShape
+from Strategy import ATRCounter
 
 c = BasicConst()
 t = IndicatorConst()
@@ -28,6 +29,12 @@ indicator_list = {'MA5': {t.TYPE:t.SMA, p.WINDOW:5},
             'MA200': {t.TYPE:t.SMA, p.WINDOW:200},
             'BBRATIO': {t.TYPE:t.BB_RATIO, p.WINDOW: 20, p.SIGMA: 2.0},
             'VQ': {t.TYPE:t.VQ}}
+
+
+
+        
+            
+    
       
 class DataBuffer:
     def __init__(self, indicators: list):
@@ -47,6 +54,12 @@ class DataBuffer:
             self.tohlcv[key] = data
         self.calc()
         
+    def fromTime(self):
+        if len(self.tohlcv) == 0:
+            return None
+        time = self.tohlcv[c.TIME][0]
+        return time
+        
     def lastTime(self):
         if len(self.tohlcv) == 0:
             return None
@@ -63,9 +76,45 @@ class DataBuffer:
     def length(self):
        return len(self.tohlcv[c.TIME]) 
     
-    def createModel(self):    
-        return
-
+    def dict2list(self):
+        out = []
+        keys = self.tohlcv.keys()
+        for key in keys:
+            out.append(self.tohlcv[key])
+        return out
+    
+    def dataSlice(self, data:dict, begin, end):
+        out = {}
+        for key in data:
+            d = data[key]
+            out[key] = d[begin: end + 1]
+        return out
+        
+    
+    def dataByDate(self, year:int, month: int, day: int, size=None):
+        t0 = jp.localize(datetime(year, month, day))
+        t1 = t0 + timedelta(days=1)
+        time = self.tohlcv[c.TIME]
+        count = 0
+        begin = None
+        end = None
+        for key in self.tohlcv.keys():
+            for i in range(len(time)):
+                t = time[i]
+                if t >= t0 and t < t1:
+                    if begin is None:
+                        begin = i
+                    else:
+                        end = i
+                    count += 1
+                    if size is not None:
+                        if count >= size:
+                            break
+        if begin is None:
+            return (None, None)
+        return (self.dataSlice(self.tohlcv, begin, end), self.dataSlice(self.technical, begin, end))   
+        
+    
 def step():
     server = BitflyData('bitfly', 'M15')
     server.loadFromCsv('./data/bitflyer_btcjpy_m15.csv') 
@@ -87,7 +136,39 @@ def step():
         d = api.nextData()        
 
 
+
+def trade():
+    indicator_param = {'ATR': {t.TYPE:t.ATR, p.WINDOW:20}}
+    indicators = Indicator.makeIndicators(indicator_param)
+    server = BitflyData('bitfly', 'M15')
+    server.loadFromCsv('../data/bitflyer_btcjpy_m15.csv') 
+    api = StubAPI(server)    
+    buffer = DataBuffer(indicators)    
+    buffer.loadData(api.allData())
+    print('len: ', buffer.length(), buffer.technical.keys())
+    print('from:', buffer.fromTime(), 'to: ', buffer.lastTime())
+    tohlcv, technical_data = buffer.dataByDate(2020, 7, 5)
     
+    atr = technical_data['ATR']
+    atr_counter = ATRCounter(0.5)
+    (long_price, short_price) = atr_counter.limitOrder(tohlcv, atr)
+    
+
+    time = array2graphShape(tohlcv, [c.TIME])
+    (fig, axes) = gridFig([5, 1], (15, 8))
+    fig.subplots_adjust(hspace=0.6, wspace=0.4)
+    graph1 = CandlePlot(fig, axes[0], 'btcjpy')
+    keys = [c.OPEN, c.HIGH, c.LOW, c.CLOSE]
+    graph1.drawCandle(time, tohlcv, keys)
+    graph1.drawLine(time, long_price)
+    graph1.drawLine(time, short_price, color='blue')
+    
+   
+    graph2 = CandlePlot(fig, axes[1], 'ATR')
+    graph2.drawLine(time, atr, color='red')
+
+    
+   
 def test():
     server = BitflyData('bitfly', 'M15')
     server.loadFromCsv('../data/bitflyer_btcjpy_m15.csv') 
@@ -98,6 +179,8 @@ def test():
     buffer = DataBuffer(indicators)
     buffer.loadData(data)
     print('len: ', buffer.length(), buffer.technical.keys())
+
+
     
     time = array2graphShape(data, [c.TIME])
     (fig, axes) = gridFig([5, 4, 4], (15, 15))
@@ -120,4 +203,4 @@ def test():
     
     
 if __name__ == '__main__':
-    test()
+    trade()
