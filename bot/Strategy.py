@@ -14,6 +14,15 @@ c = BasicConst()
 t = IndicatorConst()
 p = ParameterConst()
 
+
+
+STATUS_WAIT = 0
+STATUS_WAIT_OPEN = 1
+STATUS_OPEND = 2
+STATUS_WAIT_CLOSE = 3
+STATS_CLOSED = 4
+
+
 def crossOver(vector, ref):
     n = len(vector)
     out = np.zeros(n)
@@ -120,22 +129,8 @@ class Position:
         self.price_close = None
         self.profit = None
         self.kind = kind
+        self.count = 0
         pass
-    
-    def judgeOpen(self, time, open, high, low, close, kind, price, lot):
-        if self.is_open is not None:
-            return
-        
-        if kind == c.LONG:
-            if high < price:
-                return
-        else:
-            if low < price:
-                return
-        self.time_open = time
-        self.lot = lot
-        self.price_open = price
-        self.is_open = True
         
     def judgeClose(self, time, open, high, low, close, price):
         if self.is_open != True:
@@ -155,7 +150,6 @@ class Position:
         self.is_open = False
     
 
-    
 # Trend following
 class PerfectOrder:
     def __init__(self, windows):
@@ -240,12 +234,85 @@ class RSICounter:
     
     
 class ATRCounterPosition(Position):
-
-
     
+    def __init__(self, kind, horizon):
+        self.kind = kind
+        self.horizon = horizon
+        self.status = STATUS_WAIT   
+        self.count = None
+    
+    
+    # STATUS_WAIT
+    #  
+    #  V  if buy_signal or sell_signal ON, entry price is decided
+    #
+    # STATUS_WAIT_OPEN
+    #
+    #  V  if canBuy  or canSell
+    #
+    # STATUS_OPEND
+    #
+    #  v  if sell_signl or buy_singnal ON, exit price is decided
+    #
+    # STATUS_WAIT_CLOSE
+    #
+    # v if canSEll or canBuy
+    #
+    # STATS_CLOSED
+    
+    def update(self, time, high, low, buy_signal, sell_signal):
+        if self.status == STATUS_CLOSED:
+            return
+        
+        if self.status == STATUS_WAIT:
+            if self.kind == c.LONG and buy_signal > 0:
+                self.price_open = price
+                self.status = STATUS_WAIT_OPEN
+            elif self.kind == c.SHORT and sell_signal > 0:
+                self.price_open = price
+                self.status = STATUS_WAIT_OPEN
+                
+        if self.status == STATUS_WAIT_OPEN:
+            if self.kind == c.LONG and self.canBuy(high, self.price_open):
+                    self.time_open = time
+                    self.status = STATUS_OPEND
+                    self.count = 0
+            if self.kind == c.SHORT and self.canSell(low, self.price_open):
+                    self.time_open = time
+                    self.status == STATUS_OPEND
+                    self.count = 0
+            return
+        
+        if self.status == STATUS_OPEND:
+            self.count += 1
+            if self.count < self.horizon:
+                return            
+            if self.kind == c.LONG and sell_signal > 0:
+                self.price_close = price
+                self.status = STATUS_WAIT_CLOSE
+            elif self.kind == c.SHORT and buy_signal > 0:
+                self.price_close = price
+                self.status = STATUS_WAIT_CLOSE
+                
+        if self.status == STATUS_WAIT_CLOSE:
+            if self.kind == c.LONG and self.canSell(low, self.close_price):
+                self.time_close = time
+                self.status = STATUS_CLOSED
+            elif self.kind == c.SHORT and self.canBuy(high, self.close_price):
+                self.time_close = time
+                self.status = STATUS_CLOSED
+            
+    def canBuy(self, high, price):
+        return price <= high
+        
+    def canSell(self, low, price):
+        return price >= low
+    
+
 class ATRCounter:
     def __init__(self, coeff):
-        self.coeff = coeff;
+        self.coeff = coeff
+
         
     
         
