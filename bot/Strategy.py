@@ -262,7 +262,7 @@ class ATRCounterPosition(Position):
     
     def update(self, time, high, low, buy_signal, sell_signal):
         if self.status == STATUS_CLOSED:
-            return
+            return self.status
         
         if self.status == STATUS_WAIT:
             if self.kind == c.LONG and buy_signal > 0:
@@ -281,7 +281,7 @@ class ATRCounterPosition(Position):
                     self.time_open = time
                     self.status == STATUS_OPEND
                     self.count = 0
-            return
+            return self.status
         
         if self.status == STATUS_OPEND:
             self.count += 1
@@ -301,6 +301,8 @@ class ATRCounterPosition(Position):
             elif self.kind == c.SHORT and self.canBuy(high, self.close_price):
                 self.time_close = time
                 self.status = STATUS_CLOSED
+                
+        return self.status
             
     def canBuy(self, high, price):
         return price <= high
