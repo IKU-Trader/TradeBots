@@ -20,7 +20,7 @@ STATUS_WAIT = 0
 STATUS_WAIT_OPEN = 1
 STATUS_OPEND = 2
 STATUS_WAIT_CLOSE = 3
-STATS_CLOSED = 4
+STATUS_CLOSED = 4
 
 
 def crossOver(vector, ref):
@@ -260,16 +260,17 @@ class ATRCounterPosition(Position):
     #
     # STATS_CLOSED
     
-    def update(self, time, high, low, buy_signal, sell_signal):
+    def update(self, index, time, high, low, buy_price, sell_price):
+        self.current_index = index
         if self.status == STATUS_CLOSED:
             return self.status
         
         if self.status == STATUS_WAIT:
-            if self.kind == c.LONG and buy_signal > 0:
-                self.price_open = price
+            if self.kind == c.LONG and buy_price > 0:
+                self.price_open = buy_price
                 self.status = STATUS_WAIT_OPEN
-            elif self.kind == c.SHORT and sell_signal > 0:
-                self.price_open = price
+            elif self.kind == c.SHORT and sell_price > 0:
+                self.price_open = sell_price
                 self.status = STATUS_WAIT_OPEN
                 
         if self.status == STATUS_WAIT_OPEN:
@@ -287,19 +288,21 @@ class ATRCounterPosition(Position):
             self.count += 1
             if self.count < self.horizon:
                 return            
-            if self.kind == c.LONG and sell_signal > 0:
-                self.price_close = price
+            if self.kind == c.LONG and sell_price > 0:
+                self.price_close = sell_price
                 self.status = STATUS_WAIT_CLOSE
-            elif self.kind == c.SHORT and buy_signal > 0:
-                self.price_close = price
+            elif self.kind == c.SHORT and buy_price > 0:
+                self.price_close = buy_price
                 self.status = STATUS_WAIT_CLOSE
                 
         if self.status == STATUS_WAIT_CLOSE:
             if self.kind == c.LONG and self.canSell(low, self.close_price):
                 self.time_close = time
+                self.index_close = index
                 self.status = STATUS_CLOSED
             elif self.kind == c.SHORT and self.canBuy(high, self.close_price):
                 self.time_close = time
+                self.index_close = index
                 self.status = STATUS_CLOSED
                 
         return self.status
@@ -314,7 +317,7 @@ class ATRCounterPosition(Position):
 class ATRCounter:
     def __init__(self, coeff):
         self.coeff = coeff
-
+        self.positions = []
         
     
         
@@ -328,11 +331,54 @@ class ATRCounter:
         short_price = shift(lower, 1)
         return (long_price, short_price)
     
-    def simulateLongEveryBar(self, ohlcv:dict, price):
+    def summary(self):
+        long = []
+        short = []
+        for pos in self.positions:
+            if pos.kind == c.LONG:
+                if pos.status == STATUS_CLOSED:
+                    long.append([pos.close_index, pos.open_time, pos.open_price, pos.close_price, pos.profit, pos.count])
+            else:
+                if pos.status == STATUS_CLOSED:
+                    short.append([pos.close_index, pos.open_time, pos.open_price, pos.close_price, pos.profit, pos.count])
+                 
+        n = self.current_index + 1
+        long_profit = np.zeros(n)
+        long_profit_acc = np.zeros(n)
+        acc = 0
+        for index, _, _, _, profit, _ in long:
+            acc += profit
+            long_profit[index] = profit
+            long_profit_acc[index] = acc
+            
+        short_profit = np.zeros(n)
+        short_profit_acc = np.zeros(n)
+        acc = 0
+        for index, _, _, _, profit, _ in short:
+            acc += profit
+            short_profit[index] = profit
+            short_profit_acc[index] = acc
+            
+        return (long_profit, long_profit_acc, short_profit, short_profit_acc)
+    
+    def simulateLongEveryBar(self, tohlcv:dict, atr):
+        long_price, short_price = self.limitOrder(tohlcv, atr)
+        time = tohlcv[c.TIME]
+        high = tohlcv[c.HIGH]
+        low = tohlcv[c.LOW]
         
+        for t, h, l, buy, sell in zip(time, high, low, long_price, short_price):
+            if long_price > 0:
+                pos = ATRCounterPosition(c.LONG, 1)
+                self.positions.append(pos)
+            if short_price > 0:
+                pos = ATRCounterPosition(c.SHORT, 1)
+                self.positions.append(pos)
+            
+            for pos in self.positions:
+                pos.update(t, h, l, buy, sell)
         
-        
-        
+        return self.summary()
 
 def test():
     return
