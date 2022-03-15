@@ -6,6 +6,7 @@ Created on Sun Feb  6 12:30:54 2022
 """
 
 import numpy as np
+import pandas as pd
 from datetime import datetime, timedelta
 import pytz
 jp = pytz.timezone('Asia/Tokyo')
@@ -136,6 +137,24 @@ def step():
         d = api.nextData()        
 
 
+def save(filepath, data:dict, columns):
+    time = data[c.TIME]
+    n = len(time)
+    arrays = []
+    for column in columns:
+        arrays.append(data[column])
+        
+    out = []
+    for i in range(n):
+        d = []
+        for j in range(len(columns)):
+            d.append(arrays[j][i])
+        out.append(d)
+    
+    df = pd.DataFrame(data=out, columns=columns)
+    df.to_csv(filepath, index=False)
+    
+    
 
 def trade():
     indicator_param = {'ATR': {t.TYPE:t.ATR, p.WINDOW:20}}
@@ -155,7 +174,7 @@ def trade():
     
 
     time = array2graphShape(tohlcv, [c.TIME])
-    (fig, axes) = gridFig([5, 1], (15, 8))
+    (fig, axes) = gridFig([4, 2, 1], (15, 8))
     fig.subplots_adjust(hspace=0.6, wspace=0.4)
     graph1 = CandlePlot(fig, axes[0], 'btcjpy')
     keys = [c.OPEN, c.HIGH, c.LOW, c.CLOSE]
@@ -166,7 +185,14 @@ def trade():
    
     graph2 = CandlePlot(fig, axes[1], 'ATR')
     graph2.drawLine(time, atr, color='red')
+    
+    atr_counter.simulateEveryBar(tohlcv, atr)
+    save('./trade.csv', tohlcv, [c.TIME, c.OPEN, c.HIGH, c.LOW, c.CLOSE, t.ATR, 'long_price_open', 'long_price_close', 'short_price_open', 'short_price_close'])
 
+
+
+    #graph3 = CandlePlot(fig, axes[2], 'Profit')
+    #graph3.drawLine(time, long_profit_acc, color='red')
     
    
 def test():
