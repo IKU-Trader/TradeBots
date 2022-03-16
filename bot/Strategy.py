@@ -333,9 +333,10 @@ class ATRCounter:
     
         
     # return order price
-    def limitOrder(self, ohlcv:dict, atr):
+    def limitOrder(self, ohlcv:dict):
+        atr = ohlcv[ind.ATR]
+        
         close = ohlcv[c.CLOSE]
-        #atr = limitUnder(atr, 1.0)
         upper = close + atr * self.coeff     
         long_price = shift(upper, 1)
         lower = close - atr * self.coeff

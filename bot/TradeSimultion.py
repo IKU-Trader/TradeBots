@@ -20,16 +20,16 @@ from CandlePlot import CandlePlot, BandPlot, makeFig, gridFig, array2graphShape
 from Strategy import ATRCounter
 
 c = BasicConst()
-t = IndicatorConst()
+ind = IndicatorConst()
 p = ParameterConst()
 
-indicator_list = {'MA5': {t.TYPE:t.SMA, p.WINDOW:5},
-            'MA20': {t.TYPE:t.SMA, p.WINDOW:20},
-            'MA60': {t.TYPE:t.SMA, p.WINDOW:60},
-            'MA100': {t.TYPE:t.SMA, p.WINDOW:100},
-            'MA200': {t.TYPE:t.SMA, p.WINDOW:200},
-            'BBRATIO': {t.TYPE:t.BB_RATIO, p.WINDOW: 20, p.SIGMA: 2.0},
-            'VQ': {t.TYPE:t.VQ}}
+indicator_list = {'MA5': {ind.TYPE:ind.SMA, p.WINDOW:5},
+            'MA20': {ind.TYPE:ind.SMA, p.WINDOW:20},
+            'MA60': {ind.TYPE:ind.SMA, p.WINDOW:60},
+            'MA100': {ind.TYPE:ind.SMA, p.WINDOW:100},
+            'MA200': {ind.TYPE:ind.SMA, p.WINDOW:200},
+            'BBRATIO': {ind.TYPE:ind.BB_RATIO, p.WINDOW: 20, p.SIGMA: 2.0},
+            'VQ': {ind.TYPE:ind.VQ}}
 
 
 
@@ -157,7 +157,7 @@ def save(filepath, data:dict, columns):
     
 
 def trade():
-    indicator_param = {'ATR': {t.TYPE:t.ATR, p.WINDOW:20}}
+    indicator_param = {'ATR': {ind.TYPE:ind.ATR, p.WINDOW:20}}
     indicators = Indicator.makeIndicators(indicator_param)
     server = BitflyData('bitfly', 'M15')
     server.loadFromCsv('../data/bitflyer_btcjpy_m15.csv') 
@@ -168,9 +168,10 @@ def trade():
     print('from:', buffer.fromTime(), 'to: ', buffer.lastTime())
     tohlcv, technical_data = buffer.dataByDate(2020, 7, 5)
     
-    atr = technical_data['ATR']
+
+    tohlcv[ind.ATR] = technical_data[ind.ATR]
     atr_counter = ATRCounter(0.5)
-    (long_price, short_price) = atr_counter.limitOrder(tohlcv, atr)
+    (long_price, short_price) = atr_counter.limitOrder(tohlcv)
     
 
     time = array2graphShape(tohlcv, [c.TIME])
@@ -187,7 +188,7 @@ def trade():
     graph2.drawLine(time, atr, color='red')
     
     atr_counter.simulateEveryBar(tohlcv, atr)
-    save('./trade.csv', tohlcv, [c.TIME, c.OPEN, c.HIGH, c.LOW, c.CLOSE, t.ATR, 'long_price_open', 'long_price_close', 'short_price_open', 'short_price_close'])
+    save('./trade.csv', tohlcv, [c.TIME, c.OPEN, c.HIGH, c.LOW, c.CLOSE, ind.ATR, 'long_price_open', 'long_price_close', 'short_price_open', 'short_price_close'])
 
 
 
