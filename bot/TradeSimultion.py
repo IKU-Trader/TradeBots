@@ -17,7 +17,7 @@ from StubAPI import StubAPI
 from const import BasicConst, IndicatorConst, ParameterConst
 from TechnicalAnalysis import Indicator
 from CandlePlot import CandlePlot, BandPlot, makeFig, gridFig, array2graphShape
-from Strategy import ATRCounter
+from Strategy import AtrAlternate
 
 c = BasicConst()
 ind = IndicatorConst()
@@ -169,9 +169,9 @@ def trade():
     tohlcv, technical_data = buffer.dataByDate(2020, 7, 5)
     
 
-    tohlcv[ind.ATR] = technical_data[ind.ATR]
-    atr_counter = ATRCounter(0.5)
-    (long_price, short_price) = atr_counter.limitOrder(tohlcv)
+    atr = technical_data[ind.ATR]
+    atralt = AtrAlternate(0.5, 1)
+
     
 
     time = array2graphShape(tohlcv, [c.TIME])
@@ -180,14 +180,14 @@ def trade():
     graph1 = CandlePlot(fig, axes[0], 'btcjpy')
     keys = [c.OPEN, c.HIGH, c.LOW, c.CLOSE]
     graph1.drawCandle(time, tohlcv, keys)
-    graph1.drawLine(time, long_price)
-    graph1.drawLine(time, short_price, color='blue')
+    #graph1.drawLine(time, long_price)
+    #graph1.drawLine(time, short_price, color='blue')
     
    
     graph2 = CandlePlot(fig, axes[1], 'ATR')
     graph2.drawLine(time, atr, color='red')
     
-    atr_counter.simulateEveryBar(tohlcv, atr)
+    atralt.
     save('./trade.csv', tohlcv, [c.TIME, c.OPEN, c.HIGH, c.LOW, c.CLOSE, ind.ATR, 'long_price_open', 'long_price_close', 'short_price_open', 'short_price_close'])
 
 

@@ -206,10 +206,35 @@ def trade(df):
                             df['sell_fep'].shift(-horizon) / df['buy_price'] - 1 - 2 * fee,
                             0
                             )
+    
+    df['long_open'] = np.where(
+                            df['buy_executed'],
+                            df['buy_price'],
+                            np.nan
+                            )
+    
+    df['long_close'] = np.where(
+                            df['buy_executed'],
+                            df['sell_fep'].shift(-horizon),
+                            np.nan
+                            )
+    
     df['y_sell'] = np.where(
                             df['sell_executed'],
                             -(df['buy_fep'].shift(-horizon) / df['sell_price'] - 1) - 2 * fee,
                             0
+                            )
+    
+    df['short_open'] = np.where(
+                            df['sell_executed'],
+                            df['sell_price'],
+                            np.nan
+                            )
+    
+    df['short_close'] = np.where(
+                            df['sell_executed'],
+                            df['buy_fep'].shift(-horizon),
+                            np.nan
                             )
 
     # バックテストで利用する取引コストを計算
@@ -338,7 +363,7 @@ def readCsv(filepath):
     
 
 if __name__ == '__main__':
-    df = readCsv("./data/btcjpy_m15.csv")
+    df = readCsv("./data/btcjpy_m15s.csv")
     #df = df.dropna()
     df = calc_features(df)
     trade(df)
