@@ -187,7 +187,7 @@ def trade():
     graph2 = CandlePlot(fig, axes[1], 'ATR')
     graph2.drawLine(time, atr, color='red')
     
-    atralt.
+    atralt.simulateEveryBar(tohlcv, atr)
     save('./trade.csv', tohlcv, [c.TIME, c.OPEN, c.HIGH, c.LOW, c.CLOSE, ind.ATR, 'long_price_open', 'long_price_close', 'short_price_open', 'short_price_close'])
 
 
