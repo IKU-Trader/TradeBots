@@ -16,6 +16,7 @@ prm = ParameterConst()
 
 
 
+STATUS_NONE = -1
 STATUS_WAIT = 0
 STATUS_WAIT_ENTRY = 1
 STATUS_ENTRIED = 2
@@ -324,11 +325,12 @@ class ATRAleternatePosition(Position):
 
 
 class AtrAlternate:
-    def __init__(self, coeff, horizon):
+    def __init__(self, coeff, horizon, indicators):
         self.coeff = coeff
         self.horizon = horizon
+        self.indicators = indicators
         self.positions = []
-        self.finished_postions = []
+        self.finished_positions = []
         self.time = []
         self.open = []
         self.high = []
@@ -347,10 +349,14 @@ class AtrAlternate:
                 
     def updateAtr(self):
         dic = self.tohlcvDic()
-        atr = ATR(dic)
+        ind = self.indicators[0]
+        atr = ind.calc(dic)
         self.atr = atr
         
     def updatePosition(self, index):
+        if len(self.time) < 2:
+            return
+        
         time = self.time[-1]
         high = self.high[-1]
         low = self.low[-1]
@@ -359,11 +365,12 @@ class AtrAlternate:
         upper = close + self.coeff * price
         lower = close - self.coeff * price
         positions = []
-        for i in range(self.positions):
+        for i in range(len(self.positions)):
             pos = self.positions[i]
+            status = STATUS_NONE
             if (pos.kind == c.LONG and pos.status == STATUS_WAIT_ENTRY) or (pos.kind == c.SHORT and pos.status == STATUS_WAIT_EXIT):
                 status = pos.update(time, high, low, upper)
-            if (pos.kind == c.SHORT and pos.status == STATUS_WAIT_ENTRY) or (pos.kind == c.LONG and pos.stauus == STATUS_WAIT_EXIT):
+            if (pos.kind == c.SHORT and pos.status == STATUS_WAIT_ENTRY) or (pos.kind == c.LONG and pos.status == STATUS_WAIT_EXIT):
                 status = pos.update(time, high, low, lower)
                 
             if status == STATUS_ENTRY_FAIL:
@@ -389,6 +396,9 @@ class AtrAlternate:
         self.low.append(lo)
         self.close.append(cl)       
         self.updateAtr()
+        
+        if len(self.time) < 2:
+            return
         self.updatePosition(index)
         
         # Order
@@ -455,7 +465,7 @@ class AtrAlternate:
         tohlcv['short_price_open'] = self.position2array(c.SHORT, n, 'price_open')
         tohlcv['short_price_close'] = self.position2array(c.SHORT, n, 'price_close')        
     
-    def simulateEveryBar(self, tohlcv:dict, atr):
+    def simulateEveryBar(self, tohlcv:dict):
         time = tohlcv[c.TIME]
         open = tohlcv[c.OPEN]
         high = tohlcv[c.HIGH]

@@ -157,20 +157,21 @@ def save(filepath, data:dict, columns):
     
 
 def trade():
-    indicator_param = {'ATR': {ind.TYPE:ind.ATR, p.WINDOW:20}}
+    indicator_param = {'ATR20': {ind.TYPE:ind.ATR, p.WINDOW:20}}
     indicators = Indicator.makeIndicators(indicator_param)
     server = BitflyData('bitfly', 'M15')
-    server.loadFromCsv('../data/bitflyer_btcjpy_m15.csv') 
+    server.loadFromCsv('../data/btcjpy_m15s.csv') 
     api = StubAPI(server)    
     buffer = DataBuffer(indicators)    
     buffer.loadData(api.allData())
     print('len: ', buffer.length(), buffer.technical.keys())
     print('from:', buffer.fromTime(), 'to: ', buffer.lastTime())
-    tohlcv, technical_data = buffer.dataByDate(2020, 7, 5)
-    
+    #tohlcv, technical_data = buffer.dataByDate(2020, 7, 5)
+    tohlcv = buffer.tohlcv
+    technical_data = buffer.technical
 
-    atr = technical_data[ind.ATR]
-    atralt = AtrAlternate(0.5, 1)
+    atr = technical_data['ATR20']
+    atralt = AtrAlternate(0.5, 1, indicators)
 
     
 
@@ -187,8 +188,9 @@ def trade():
     graph2 = CandlePlot(fig, axes[1], 'ATR')
     graph2.drawLine(time, atr, color='red')
     
-    atralt.simulateEveryBar(tohlcv, atr)
-    save('./trade.csv', tohlcv, [c.TIME, c.OPEN, c.HIGH, c.LOW, c.CLOSE, ind.ATR, 'long_price_open', 'long_price_close', 'short_price_open', 'short_price_close'])
+    atralt.simulateEveryBar(tohlcv)
+    print(tohlcv.keys())
+    save('./trade.csv', tohlcv, [c.TIME, c.OPEN, c.HIGH, c.LOW, c.CLOSE, 'long_price_open', 'long_price_close', 'short_price_open', 'short_price_close'])
 
 
 
@@ -198,10 +200,11 @@ def trade():
    
 def test():
     server = BitflyData('bitfly', 'M15')
-    server.loadFromCsv('../data/bitflyer_btcjpy_m15.csv') 
+    server.loadFromCsv('../data/btcjpy_m15s.csv') 
     api = StubAPI(server)
-    t = jp.localize(datetime(2020, 7, 5, 7, 0))
-    data = api.server.dataFrom(t,  2 * 4 * 24)
+    #t = jp.localize(datetime(2020, 7, 5, 7, 0))
+    #data = api.server.dataFrom(t,  2 * 4 * 24)
+    data = api.allData()
     indicators = Indicator.makeIndicators(indicator_list)
     buffer = DataBuffer(indicators)
     buffer.loadData(data)

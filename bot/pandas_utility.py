@@ -17,6 +17,7 @@ def df2dic(df: pd.DataFrame, is_numpy=True, time_key = 'time', convert_keys=None
             d = df[column].values
         else:
             d = df[column].values.tolist()
+            d = [float(v) for v in d]
             if is_numpy:
                 d = np.array(d)
         if convert_keys is None:
