@@ -314,12 +314,14 @@ class ATRAleternatePosition(Position):
                 self.index_close = index
                 self.price_close = price
                 self.profit = self.price_close - self.price_open
+                self.ror = self.profit / self.price_open
                 self.status = STATUS_DONE
             elif self.kind == c.SHORT and self.canBuy(low, price):
                 self.time_close = time
                 self.index_close = index
                 self.price_close = price
-                self.profit = self.price_open - self.price_close  
+                self.profit = self.price_open - self.price_close
+                self.ror = self.profit / self.price_open
                 self.status = STATUS_DONE
             return self.status
         
@@ -360,20 +362,29 @@ class AtrAlternate:
         self.current_position_id += 1
         return self.current_position_id
         
-    def tohlcvDic(self):
+    def tohlcvDic(self, size=None):
         dic = {}
-        dic[c.TIME] = self.time
-        dic[c.OPEN] = self.open
-        dic[c.HIGH] = self.high
-        dic[c.LOW] = self.low
-        dic[c.CLOSE] = self.close
+        n = len(self.time)
+        if size is None:
+            begin = 0
+        else:
+            begin = n - size
+            if begin < 0:
+                begin = 0
+        
+        dic[c.TIME] = self.time[begin:n]
+        dic[c.OPEN] = self.open[begin:n]
+        dic[c.HIGH] = self.high[begin:n]
+        dic[c.LOW] = self.low[begin:n]
+        dic[c.CLOSE] = self.close[begin:n]
         return dic        
                 
     def updateAtr(self):
-        dic = self.tohlcvDic()
         ind = self.indicators[0]
-        atr = ind.calc(dic)
-        self.atr = atr
+        window = ind.params[prm.WINDOW]
+        dic = self.tohlcvDic(size=window + 1)
+        atrdata = ind.calc(dic)
+        self.atr.append(atrdata[-1])
         
     def updatePosition(self, index):
         if len(self.time) < 2:
@@ -393,22 +404,12 @@ class AtrAlternate:
             self.positions = positions
             return
         
-            
         upper = int(self.close[-2] + self.coeff * price + 0.5)
         lower = int(self.close[-2] - self.coeff * price + 0.5)
         
-        if index == 39:
-            tt = self.time
-            cc = self.close
-            atat = self.atr
-            debug = 1
-               
         positions = []
         for i in range(len(self.positions)):
             pos = self.positions[i]
-            
-            if pos.idno == 76:
-                debug = 1
                 
             if pos.status == STATUS_ENTRIED:
                 status = pos.update(index, time, high, low, 0)
@@ -431,7 +432,7 @@ class AtrAlternate:
             if status == STATUS_ENTRY_ORDER_FAIL:
                 continue
             
-            pos.desc()
+            #pos.desc()
             if status == STATUS_DONE:
                 self.finished_positions.append(pos)
             else:
@@ -511,7 +512,11 @@ class AtrAlternate:
                 if key == 'price_open':
                     value[position.index_open] = position.price_open
                 elif key == 'price_close':
-                    value[position.index_open] = position.price_close        
+                    value[position.index_open] = position.price_close
+                elif key == 'profit':
+                    value[position.index_open] = position.profit
+                elif key == 'ror':
+                    value[position.index_open] = position.ror
         return value
     
     def summary2(self, tohlcv:dict):
@@ -520,7 +525,11 @@ class AtrAlternate:
         tohlcv['long_price_open'] = self.position2array(c.LONG, n, 'price_open')
         tohlcv['long_price_close'] = self.position2array(c.LONG, n, 'price_close')
         tohlcv['short_price_open'] = self.position2array(c.SHORT, n, 'price_open')
-        tohlcv['short_price_close'] = self.position2array(c.SHORT, n, 'price_close')        
+        tohlcv['short_price_close'] = self.position2array(c.SHORT, n, 'price_close')
+        tohlcv['long_profit'] = self.position2array(c.LONG, n, 'profit')
+        tohlcv['short_profit'] = self.position2array(c.SHORT, n, 'profit')
+        tohlcv['long_ror'] = self.position2array(c.LONG, n, 'ror')
+        tohlcv['short_ror'] = self.position2array(c.SHORT, n, 'ror')
     
     def simulateEveryBar(self, tohlcv:dict):
         time = tohlcv[c.TIME]

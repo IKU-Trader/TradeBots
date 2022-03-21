@@ -154,13 +154,19 @@ def save(filepath, data:dict, columns):
     df = pd.DataFrame(data=out, columns=columns)
     df.to_csv(filepath, index=False)
     
-    
+def acc(array):
+    s = 0.0
+    out = []
+    for a in array:
+        s += a
+        out.append(s)
+    return out
 
 def trade():
     indicator_param = {'ATR14': {ind.TYPE:ind.ATR, p.WINDOW:14}}
     indicators = Indicator.makeIndicators(indicator_param)
     server = BitflyData('bitfly', 'M15')
-    server.loadFromCsv('../data/btcjpy_m15s.csv') 
+    server.loadFromCsv('../data/btcjpy_m15.csv') 
     api = StubAPI(server)    
     buffer = DataBuffer(indicators)    
     buffer.loadData(api.allData())
@@ -179,28 +185,31 @@ def trade():
 
 
     time = array2graphShape(tohlcv, [c.TIME])
-    (fig, axes) = gridFig([4, 2, 1], (15, 8))
+    long_profit = array2graphShape(tohlcv, ['long_profit'])
+    long_profit_acc = acc(long_profit)
+    short_profit = array2graphShape(tohlcv, ['short_profit'])
+    short_profit_acc = acc(short_profit)
+    
+    (fig, axes) = gridFig([4, 1, 2], (15, 8))
     fig.subplots_adjust(hspace=0.6, wspace=0.4)
     graph1 = CandlePlot(fig, axes[0], 'btcjpy')
     keys = [c.OPEN, c.HIGH, c.LOW, c.CLOSE]
     graph1.drawCandle(time, tohlcv, keys)
     #graph1.drawLine(time, long_price)
     #graph1.drawLine(time, short_price, color='blue')
-    
-   
+       
     graph2 = CandlePlot(fig, axes[1], 'ATR')
     graph2.drawLine(time, atr, color='red')
     
 
-
-
-    #graph3 = CandlePlot(fig, axes[2], 'Profit')
-    #graph3.drawLine(time, long_profit_acc, color='red')
+    graph3 = CandlePlot(fig, axes[2], 'Profit')
+    graph3.drawLine(time, long_profit_acc, color='red')
+    graph3.drawLine(time, short_profit_acc, color='blue')
     
    
 def test():
     server = BitflyData('bitfly', 'M15')
-    server.loadFromCsv('../data/btcjpy_m15s.csv') 
+    server.loadFromCsv('../data/bitflyer_btcjpy_m15.csv') 
     api = StubAPI(server)
     #t = jp.localize(datetime(2020, 7, 5, 7, 0))
     #data = api.server.dataFrom(t,  2 * 4 * 24)
