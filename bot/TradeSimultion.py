@@ -190,7 +190,7 @@ def trade():
     short_profit = array2graphShape(tohlcv, ['short_profit'])
     short_profit_acc = acc(short_profit)
     
-    (fig, axes) = gridFig([4, 1, 2], (15, 8))
+    (fig, axes) = gridFig([4, 1, 4], (15, 10))
     fig.subplots_adjust(hspace=0.6, wspace=0.4)
     graph1 = CandlePlot(fig, axes[0], 'btcjpy')
     keys = [c.OPEN, c.HIGH, c.LOW, c.CLOSE]
