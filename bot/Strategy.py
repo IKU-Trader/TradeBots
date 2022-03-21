@@ -16,13 +16,12 @@ prm = ParameterConst()
 
 
 
-STATUS_NONE = -1
-STATUS_WAIT = 0
-STATUS_WAIT_ENTRY = 1
+STATUS_NONE = 0
+STATUS_ENTRY_ORDER = 1
 STATUS_ENTRIED = 2
-STATUS_WAIT_EXIT = 3
-STATUS_EXIT = 4
-STATUS_ENTRY_FAIL = 5
+STATUS_EXIT_ORDER = 3
+STATUS_DONE = 4
+STATUS_ENTRY_ORDER_FAIL = 5
 
 
 def crossOver(vector, ref):
@@ -237,10 +236,11 @@ class RSICounter:
     
 class ATRAleternatePosition(Position):
     
-    def __init__(self, kind, horizon):
+    def __init__(self, idno, kind, horizon):
+        self.idno = idno
         self.kind = kind
         self.horizon = horizon
-        self.status = STATUS_WAIT   
+        self.status = STATUS_ENTRY_ORDER
         self.count = None
         self.index_open = None
         self.index_close = None
@@ -273,56 +273,73 @@ class ATRAleternatePosition(Position):
     
     def update(self, index, time, high, low, price):
         self.current_index = index
-        if self.status == STATUS_EXIT:
+        if self.status == STATUS_DONE:
             return self.status
 
-        
-                
-        if self.status == STATUS_WAIT_ENTRY:
-            if self.kind == c.LONG and self.canBuy(high, price):
+        if self.status == STATUS_ENTRY_ORDER:
+            if self.kind == c.LONG:
+                if self.canBuy(low, price):
+                    self.time_open = time
+                    self.index_open = index
+                    self.price_open = price
+                    self.status = STATUS_ENTRIED
+                    self.count = 0    
+                else:
+                    self.status = STATUS_ENTRY_ORDER_FAIL
+                    
+            elif self.kind == c.SHORT:
+                if self.canSell(high, price):
                     self.time_open = time
                     self.index_open = index
                     self.price_open = price
                     self.status = STATUS_ENTRIED
                     self.count = 0
-            else:
-                self.status = STATUS_ENTRY_FAIL
-            
-            if self.kind == c.SHORT and self.canSell(low, price):
-                    self.time_open = time
-                    self.index_open = index
-                    self.price_open = price
-                    self.status == STATUS_ENTRIED
-                    self.count = 0
-            else:
-                self.tatus = STATUS_ENTRY_FAIL
+                else:
+                    self.status = STATUS_ENTRY_ORDER_FAIL
             return self.status
  
+        ###
         
         if self.status == STATUS_ENTRIED:
             self.count += 1
             if self.count < self.horizon:
                 return self.status
             else:
-                self.status = STATUS_WAIT_EXIT
+                self.status = STATUS_EXIT_ORDER
+            return self.status
                 
-        if self.status == STATUS_WAIT_EXIT:
-            if self.kind == c.LONG and self.canSell(low, price):
+        if self.status == STATUS_EXIT_ORDER:
+            if self.kind == c.LONG and self.canSell(high, price):
                 self.time_close = time
                 self.index_close = index
                 self.price_close = price
                 self.profit = self.price_close - self.price_open
-                self.status = STATUS_EXIT
-            elif self.kind == c.SHORT and self.canBuy(high, self.close):
+                self.status = STATUS_DONE
+            elif self.kind == c.SHORT and self.canBuy(low, price):
                 self.time_close = time
                 self.index_close = index
                 self.price_close = price
                 self.profit = self.price_open - self.price_close  
-                self.status = STATUS_EXIT
-                
-        return self.status
-            
+                self.status = STATUS_DONE
+            return self.status
+        
+    
+    def canBuy(self, low, price):
+        return price >= low
 
+    def canSell(self, high, price):
+        return price <= high
+    
+    def desc(self):
+        s = 'ID: ' + str(self.idno)
+        if self.kind == c.LONG:
+            s += ' kind: Long '
+        else:
+            s += ' kind: Short '
+        s += ' status: ' + str(self.status)
+        s += ' open: ' + str(self.price_open)  + ' @' +  str(self.time_open) 
+        s += ' close: ' + str(self.price_close)  + ' @' +  str(self.time_close) 
+        print(s)
 
 class AtrAlternate:
     def __init__(self, coeff, horizon, indicators):
@@ -337,6 +354,11 @@ class AtrAlternate:
         self.low = []
         self.close = []
         self.atr = []
+        self.current_position_id = 0
+        
+    def idno(self):
+        self.current_position_id += 1
+        return self.current_position_id
         
     def tohlcvDic(self):
         dic = {}
@@ -362,21 +384,56 @@ class AtrAlternate:
         low = self.low[-1]
         close = self.close[-1]
         price = self.atr[-2]
-        upper = close + self.coeff * price
-        lower = close - self.coeff * price
+        
+        if np.isnan(price):
+            positions = []
+            for pos in self.positions:
+                if pos.status != STATUS_ENTRY_ORDER:
+                    positions.append(pos)
+            self.positions = positions
+            return
+        
+            
+        upper = int(self.close[-2] + self.coeff * price + 0.5)
+        lower = int(self.close[-2] - self.coeff * price + 0.5)
+        
+        if index == 39:
+            tt = self.time
+            cc = self.close
+            atat = self.atr
+            debug = 1
+               
         positions = []
         for i in range(len(self.positions)):
             pos = self.positions[i]
-            status = STATUS_NONE
-            if (pos.kind == c.LONG and pos.status == STATUS_WAIT_ENTRY) or (pos.kind == c.SHORT and pos.status == STATUS_WAIT_EXIT):
-                status = pos.update(time, high, low, upper)
-            if (pos.kind == c.SHORT and pos.status == STATUS_WAIT_ENTRY) or (pos.kind == c.LONG and pos.status == STATUS_WAIT_EXIT):
-                status = pos.update(time, high, low, lower)
+            
+            if pos.idno == 76:
+                debug = 1
                 
-            if status == STATUS_ENTRY_FAIL:
+            if pos.status == STATUS_ENTRIED:
+                status = pos.update(index, time, high, low, 0)
+                if status == STATUS_ENTRIED:
+                    positions.append(pos)
+                    continue
+
+            if pos.status == STATUS_ENTRY_ORDER:
+                if pos.kind == c.LONG:
+                    price = lower
+                else:
+                    price = upper
+            elif pos.status == STATUS_EXIT_ORDER:
+                if pos.kind == c.LONG:
+                    price = upper
+                else:
+                    price = lower
+            
+            status = pos.update(index, time, high, low, price)
+            if status == STATUS_ENTRY_ORDER_FAIL:
                 continue
-            elif status == STATUS_EXIT:
-                self.finished_postions.append(pos)
+            
+            pos.desc()
+            if status == STATUS_DONE:
+                self.finished_positions.append(pos)
             else:
                 positions.append(pos)
         self.positions = positions
@@ -402,9 +459,9 @@ class AtrAlternate:
         self.updatePosition(index)
         
         # Order
-        pos1 = ATRAleternatePosition(c.LONG, self.horizon)
+        pos1 = ATRAleternatePosition(self.idno(), c.LONG, self.horizon)
         self.positions.append(pos1)
-        pos2 = ATRAleternatePosition(c.SHORT, self.horizon)
+        pos2 = ATRAleternatePosition(self.idno(), c.SHORT, self.horizon)
         self.positions.append(pos2)
     
         
@@ -454,7 +511,7 @@ class AtrAlternate:
                 if key == 'price_open':
                     value[position.index_open] = position.price_open
                 elif key == 'price_close':
-                    value[position.index_close] = position.price_close        
+                    value[position.index_open] = position.price_close        
         return value
     
     def summary2(self, tohlcv:dict):
@@ -474,6 +531,8 @@ class AtrAlternate:
         
         for i, tohlc in enumerate(zip(time, open, high, low, close)):
             self.update(i, tohlc)
+            
+        print('Total Trade num:', len(self.finished_positions), ' not closed num: ', len(self.positions))
             
         self.summary2(tohlcv)
         return

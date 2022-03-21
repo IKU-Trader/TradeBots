@@ -157,7 +157,7 @@ def save(filepath, data:dict, columns):
     
 
 def trade():
-    indicator_param = {'ATR20': {ind.TYPE:ind.ATR, p.WINDOW:20}}
+    indicator_param = {'ATR14': {ind.TYPE:ind.ATR, p.WINDOW:14}}
     indicators = Indicator.makeIndicators(indicator_param)
     server = BitflyData('bitfly', 'M15')
     server.loadFromCsv('../data/btcjpy_m15s.csv') 
@@ -170,10 +170,13 @@ def trade():
     tohlcv = buffer.tohlcv
     technical_data = buffer.technical
 
-    atr = technical_data['ATR20']
+    atr = technical_data['ATR14']
     atralt = AtrAlternate(0.5, 1, indicators)
 
-    
+    atralt.simulateEveryBar(tohlcv)
+    print(tohlcv.keys())
+    save('./trade.csv', tohlcv, [c.TIME, c.OPEN, c.HIGH, c.LOW, c.CLOSE, 'long_price_open', 'long_price_close', 'short_price_open', 'short_price_close'])
+
 
     time = array2graphShape(tohlcv, [c.TIME])
     (fig, axes) = gridFig([4, 2, 1], (15, 8))
@@ -188,9 +191,6 @@ def trade():
     graph2 = CandlePlot(fig, axes[1], 'ATR')
     graph2.drawLine(time, atr, color='red')
     
-    atralt.simulateEveryBar(tohlcv)
-    print(tohlcv.keys())
-    save('./trade.csv', tohlcv, [c.TIME, c.OPEN, c.HIGH, c.LOW, c.CLOSE, 'long_price_open', 'long_price_close', 'short_price_open', 'short_price_close'])
 
 
 
