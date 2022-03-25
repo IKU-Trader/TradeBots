@@ -8,13 +8,12 @@ Created on Fri Feb 11 16:50:07 2022
 import numpy as np
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
-from TechnicalAnalysis import SMA, RSI, ATR, movingAverage
+from TechnicalAnalysis import SMA, RSI, movingAverage
+from TechnicalLibrary import S_ATR
 from const import BasicConst, IndicatorConst, ParameterConst
 c = BasicConst()
 ind = IndicatorConst()
 prm = ParameterConst()
-
-
 
 STATUS_NONE = 0
 STATUS_ENTRY_ORDER = 1
@@ -203,7 +202,6 @@ class PerfectOrder:
                     out.append(0)
         return out  
     
-
 # Counter Trend
 class RSICounter:
     
@@ -250,27 +248,21 @@ class ATRAleternatePosition(Position):
         self.time_close = None
         self.profit = None
     
-    
-    # STATUS_WAIT
+    #                         if entry failed
+    # (1) STATUS_ENTRY_ORDER       --->       (5) STATUS_ENTRY_FAIL
     #  
-    #  V  if buy_signal or sell_signal ON, entry price is decided
+    #  V  if entry is success   
     #
-    # STATUS_WAIT_ENTRY
+    # (2) STATUS_ENTRIED
     #
-    #  V  if canBuy  or canSell
+    #  V  After horizon time 
     #
-    # STATUS_ENTRIED
+    # (3) STATUS_EXIT_ORDER
     #
-    #  v  if sell_signl or buy_singnal ON, exit price is decided
+    #  v  if position is closed
     #
-    # STATUS_WAIT_EXIT
-    #
-    # v if canSEll or canBuy
-    #
-    # STATS_CLOSED
-    
-    
-    
+    # (4) STATUS_DONE
+
     def update(self, index, time, high, low, price):
         self.current_index = index
         if self.status == STATUS_DONE:
@@ -323,8 +315,7 @@ class ATRAleternatePosition(Position):
                 self.profit = self.price_open - self.price_close
                 self.ror = self.profit / self.price_open
                 self.status = STATUS_DONE
-            return self.status
-        
+            return self.status    
     
     def canBuy(self, low, price):
         return price >= low
@@ -357,34 +348,34 @@ class AtrAlternate:
         self.close = []
         self.atr = []
         self.current_position_id = 0
+        ind = self.indicators[0]
+        window = ind.params[prm.WINDOW]
+        self.s_atr = S_ATR(window)
         
     def idno(self):
         self.current_position_id += 1
         return self.current_position_id
         
-    def tohlcvDic(self, size=None):
+            
+    def sliceDic(self, data:dict, begin, stop):
+        time = data[c.TIME]
+        n = len(time)
+        if begin < 0:
+            return None
+        if stop > n:
+            return None
+    
         dic = {}
-        n = len(self.time)
-        if size is None:
-            begin = 0
-        else:
-            begin = n - size
-            if begin < 0:
-                begin = 0
-        
-        dic[c.TIME] = self.time[begin:n]
-        dic[c.OPEN] = self.open[begin:n]
-        dic[c.HIGH] = self.high[begin:n]
-        dic[c.LOW] = self.low[begin:n]
-        dic[c.CLOSE] = self.close[begin:n]
-        return dic        
+        dic[c.TIME] = data[c.TIME][begin:stop]
+        dic[c.OPEN] = data[c.OPEN][begin:stop]
+        dic[c.HIGH] = data[c.HIGH][begin:stop]
+        dic[c.LOW] = data[c.LOW][begin:stop]
+        dic[c.CLOSE] = data[c.CLOSE][begin:stop]
+        return dic       
                 
-    def updateAtr(self):
-        ind = self.indicators[0]
-        window = ind.params[prm.WINDOW]
-        dic = self.tohlcvDic(size=window + 1)
-        atrdata = ind.calc(dic)
-        self.atr.append(atrdata[-1])
+    def updateAtr(self, high, low, close):
+        v = self.s_atr.update(high, low, close)
+        self.atr.append(v)
         
     def updatePosition(self, index):
         if len(self.time) < 2:
@@ -439,8 +430,6 @@ class AtrAlternate:
                 positions.append(pos)
         self.positions = positions
         
-                
-        
     def update(self, index, tohlc:list):
         t = tohlc[0]
         op = tohlc[1]
@@ -453,7 +442,7 @@ class AtrAlternate:
         self.high.append(hi)
         self.low.append(lo)
         self.close.append(cl)       
-        self.updateAtr()
+        self.updateAtr(hi, lo, cl)
         
         if len(self.time) < 2:
             return
@@ -464,7 +453,6 @@ class AtrAlternate:
         self.positions.append(pos1)
         pos2 = ATRAleternatePosition(self.idno(), c.SHORT, self.horizon)
         self.positions.append(pos2)
-    
         
     # return order price
     def limitOrder(self, ohlcv:dict):
@@ -520,6 +508,7 @@ class AtrAlternate:
         return value
     
     def summary2(self, tohlcv:dict):
+        tohlcv['ATR'] = self.atr
         time = tohlcv[c.TIME]
         n = len(time)
         tohlcv['long_price_open'] = self.position2array(c.LONG, n, 'price_open')
@@ -542,7 +531,6 @@ class AtrAlternate:
             self.update(i, tohlc)
             
         print('Total Trade num:', len(self.finished_positions), ' not closed num: ', len(self.positions))
-            
         self.summary2(tohlcv)
         return
     
@@ -551,7 +539,6 @@ class AtrAlternate:
 
 def test():
     return
-    
     
     
 

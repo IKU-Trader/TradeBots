@@ -181,14 +181,14 @@ def trade():
 
     atralt.simulateEveryBar(tohlcv)
     print(tohlcv.keys())
-    save('./trade.csv', tohlcv, [c.TIME, c.OPEN, c.HIGH, c.LOW, c.CLOSE, 'long_price_open', 'long_price_close', 'short_price_open', 'short_price_close'])
+    save('./trade.csv', tohlcv, [c.TIME, c.OPEN, c.HIGH, c.LOW, c.CLOSE, 'ATR', 'long_price_open', 'long_price_close', 'short_price_open', 'short_price_close'])
 
 
     time = array2graphShape(tohlcv, [c.TIME])
-    long_profit = array2graphShape(tohlcv, ['long_profit'])
-    long_profit_acc = acc(long_profit)
-    short_profit = array2graphShape(tohlcv, ['short_profit'])
-    short_profit_acc = acc(short_profit)
+    long_ror = array2graphShape(tohlcv, ['long_ror'])
+    long_ror_acc = acc(long_ror)
+    short_ror = array2graphShape(tohlcv, ['short_ror'])
+    short_ror_acc = acc(short_ror)
     
     (fig, axes) = gridFig([4, 1, 4], (15, 10))
     fig.subplots_adjust(hspace=0.6, wspace=0.4)
@@ -203,8 +203,8 @@ def trade():
     
 
     graph3 = CandlePlot(fig, axes[2], 'Profit')
-    graph3.drawLine(time, long_profit_acc, color='red')
-    graph3.drawLine(time, short_profit_acc, color='blue')
+    graph3.drawLine(time, long_ror_acc, color='red')
+    graph3.drawLine(time, short_ror_acc, color='blue')
     
    
 def test():

@@ -28,7 +28,6 @@ def calc_features(df):
     low = df['lo'].values
     close = df['cl'].values
     volume = df['volume'].values
-    
     orig_columns = df.columns
 
     hilo = (high + low) / 2
@@ -363,7 +362,7 @@ def readCsv(filepath):
     
 
 if __name__ == '__main__':
-    df = readCsv("./data/btcjpy_m15s.csv")
+    df = readCsv("./data/btcjpy_m15.csv")
     #df = df.dropna()
     df = calc_features(df)
     trade(df)
