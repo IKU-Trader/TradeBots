@@ -8,7 +8,7 @@ Created on Fri Feb 11 16:50:07 2022
 import numpy as np
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
-from TechnicalAnalysis import SMA, RSI, movingAverage
+from TechnicalAnalysis import TaLib
 from TechnicalLibrary import S_ATR
 from const import BasicConst, IndicatorConst, ParameterConst
 c = BasicConst()
@@ -184,7 +184,7 @@ class PerfectOrder:
     def perfectOrder(self, ohlcv:dict, windows, is_ascend):
         mas = []
         for window in windows:
-            v = SMA(ohlcv, window)
+            v = TaLib.SMA(ohlcv, window)
             mas.append(v)
         out = []
         n = len(mas[0])
@@ -213,8 +213,8 @@ class RSICounter:
         
     # return signal 1: order 0: not order
     def marketOrder(self, ohlcv:dict):
-        rsi = RSI(ohlcv, self.rsi_window)
-        ma_rsi = movingAverage(rsi, self.ma_window)
+        rsi = TaLib.RSI(ohlcv, self.rsi_window)
+        ma_rsi = TaLib.movingAverage(rsi, self.ma_window)
         long = self.long(rsi, ma_rsi)
         short = self.short(rsi, ma_rsi)
         return (long, short)
@@ -465,33 +465,43 @@ class AtrAlternate:
         short_price = shift(lower, 1)
         return (long_price, short_price)
     
-    def summary(self, length):
-        long = []
-        short = []
-        for pos in self.finisehd_positions:
-            if pos.kind == c.LONG:                
-                long.append([pos.index_close, pos.time_open, pos.price_open, pos.price_close, pos.profit, pos.count])
+    def summary(self, tohlcv:dict):
+        long_ror = []
+        short_ror = []
+        long_profit = []
+        short_profit = []
+        for pos in self.finished_positions:
+            if pos.kind == c.LONG:
+                long_ror.append(pos.ror)
+                long_profit.append(pos.profit)
             else:
-                short.append([pos.index_close, pos.time_open, pos.price_open, pos.price_close, pos.profit, pos.count])
-                 
-        long_profit = np.zeros(length)
-        long_profit_acc = np.zeros(length)
-        acc = 0
-        for index, _, _, _, profit, _ in long:
-            acc += profit
-            long_profit[index] = profit
-            long_profit_acc[index] = acc
-            
-        short_profit = np.zeros(length)
-        short_profit_acc = np.zeros(length)
-        acc = 0
-        for index, _, _, _, profit, _ in short:
-            acc += profit
-            short_profit[index] = profit
-            short_profit_acc[index] = acc
-            
-        return (long_profit, long_profit_acc, short_profit, short_profit_acc)
+                short_ror.append(pos.ror)
+                short_profit.append(pos.profit)
+        
+        result = {}
+        result['long_ror_num'] = len(long_ror)
+        result['long_ror_min'] = np.min(long_ror)
+        result['long_ror_max'] = np.max(long_ror)
+        result['long_ror_mean'] = np.mean(long_ror)
+        result['short_ror_num'] = len(short_ror)
+        result['short_ror_min'] = np.min(short_ror)
+        result['short_ror_max'] = np.max(short_ror)
+        result['short_ror_mean'] = np.mean(short_ror)
+        result['long_profit_max'] = np.max(tohlcv['long_profit_acc'])
+        result['long_draw_down'] = np.min(tohlcv['long_profit_acc'])
+        result['short_profit_max'] = np.max(tohlcv['short_profit_acc'])
+        result['short_draw_down'] = np.min(tohlcv['short_profit_acc'])        
+        
+        
+        return result
     
+    def acc(self, array):
+        s = 0.0
+        out = []
+        for a in array:
+            s += a
+            out.append(s)
+        return out
     
     def position2array(self, kind, length, key:str):
         value = np.zeros(length)
@@ -507,7 +517,7 @@ class AtrAlternate:
                     value[position.index_open] = position.ror
         return value
     
-    def summary2(self, tohlcv:dict):
+    def makeTradeData(self, tohlcv:dict):
         tohlcv['ATR'] = self.atr
         time = tohlcv[c.TIME]
         n = len(time)
@@ -519,6 +529,13 @@ class AtrAlternate:
         tohlcv['short_profit'] = self.position2array(c.SHORT, n, 'profit')
         tohlcv['long_ror'] = self.position2array(c.LONG, n, 'ror')
         tohlcv['short_ror'] = self.position2array(c.SHORT, n, 'ror')
+
+        tohlcv['long_profit_acc'] = self.acc(tohlcv['long_profit'])
+        tohlcv['short_profit_acc'] = self.acc(tohlcv['short_profit'])
+        tohlcv['long_ror_acc'] = self.acc(tohlcv['long_ror'])
+        tohlcv['short_ror_acc'] = self.acc(tohlcv['short_ror'])
+
+
     
     def simulateEveryBar(self, tohlcv:dict):
         time = tohlcv[c.TIME]
@@ -530,9 +547,9 @@ class AtrAlternate:
         for i, tohlc in enumerate(zip(time, open, high, low, close)):
             self.update(i, tohlc)
             
-        print('Total Trade num:', len(self.finished_positions), ' not closed num: ', len(self.positions))
-        self.summary2(tohlcv)
-        return
+        #print('Total Trade num:', len(self.finished_positions), ' not closed num: ', len(self.positions))
+        self.makeTradeData(tohlcv)
+        return self.summary(tohlcv)
     
     def allPosition(self):
         return self.positions

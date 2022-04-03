@@ -276,7 +276,7 @@ def trade(df):
     plt.show()
 
     #df.to_pickle('df_y.pkl')    
-    df.to_excel('trade.xlsx', index=False)
+    #df.to_excel('trade.xlsx', index=False)
 
 def ml(df):
     df = df.dropna()
@@ -290,10 +290,10 @@ def ml(df):
 
     # 本番用モデルの学習 (このチュートリアルでは使わない)
     # 実稼働する用のモデルはデータ全体で学習させると良い
-    model.fit(df[features], df['y_buy'])
-    joblib.dump(model, 'model_y_buy.xz', compress=True) 
-    model.fit(df[features], df['y_sell'])
-    joblib.dump(model, 'model_y_sell.xz', compress=True)
+    #model.fit(df[features], df['y_buy'])
+    #joblib.dump(model, 'model_y_buy.xz', compress=True) 
+    #model.fit(df[features], df['y_sell'])
+    #joblib.dump(model, 'model_y_sell.xz', compress=True)
 
     # 通常のCV
     cv_indicies = list(KFold().split(df))
@@ -362,7 +362,7 @@ def readCsv(filepath):
     
 
 if __name__ == '__main__':
-    df = readCsv("./data/btcjpy_m15.csv")
+    df = readCsv("./data/bitflyer/btcjpy_m15.csv")
     #df = df.dropna()
     df = calc_features(df)
     trade(df)

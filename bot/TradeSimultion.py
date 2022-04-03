@@ -7,11 +7,9 @@ Created on Sun Feb  6 12:30:54 2022
 
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
-import pytz
-jp = pytz.timezone('Asia/Tokyo')
 
-from DataServer import BitflyData
+from DataServer import GemforexData, BitflyData
+from DataBuffer import DataBuffer
 from StubAPI import StubAPI
 
 from const import BasicConst, IndicatorConst, ParameterConst
@@ -23,223 +21,217 @@ c = BasicConst()
 ind = IndicatorConst()
 p = ParameterConst()
 
-indicator_list = {'MA5': {ind.TYPE:ind.SMA, p.WINDOW:5},
-            'MA20': {ind.TYPE:ind.SMA, p.WINDOW:20},
-            'MA60': {ind.TYPE:ind.SMA, p.WINDOW:60},
-            'MA100': {ind.TYPE:ind.SMA, p.WINDOW:100},
-            'MA200': {ind.TYPE:ind.SMA, p.WINDOW:200},
-            'BBRATIO': {ind.TYPE:ind.BB_RATIO, p.WINDOW: 20, p.SIGMA: 2.0},
-            'VQ': {ind.TYPE:ind.VQ}}
 
-
-
-        
-            
-    
-      
-class DataBuffer:
-    def __init__(self, indicators: list):
-        self.indicators = indicators
-        self.tohlcv = []
-                
-    def loadData(self, tohlcv: dict):
-        self.tohlcv = tohlcv
-        self.calc()
-        pass
-
-    def addData(self, tohlcv: dict):
-        for key, values in tohlcv.items():
-            data = self.tohlcv[key]
-            for v in values:
-                data = np.append(data, v)
-            self.tohlcv[key] = data
-        self.calc()
-        
-    def fromTime(self):
-        if len(self.tohlcv) == 0:
-            return None
-        time = self.tohlcv[c.TIME][0]
-        return time
-        
-    def lastTime(self):
-        if len(self.tohlcv) == 0:
-            return None
-        time = self.tohlcv[c.TIME][-1]
-        return time
-
-    def calc(self):
-        technical = {}
-        for indicator in self.indicators:
-            technical[indicator.name] = indicator.calc(self.tohlcv)        
-        self.technical = technical
-        return technical
-    
-    def length(self):
-       return len(self.tohlcv[c.TIME]) 
-    
-    def dict2list(self):
-        out = []
-        keys = self.tohlcv.keys()
-        for key in keys:
-            out.append(self.tohlcv[key])
-        return out
-    
-    def dataSlice(self, data:dict, begin, end):
-        out = {}
-        for key in data:
-            d = data[key]
-            out[key] = d[begin: end + 1]
-        return out
-        
-    
-    def dataByDate(self, year:int, month: int, day: int, size=None):
-        t0 = jp.localize(datetime(year, month, day))
-        t1 = t0 + timedelta(days=1)
-        time = self.tohlcv[c.TIME]
-        count = 0
-        begin = None
-        end = None
-        for key in self.tohlcv.keys():
-            for i in range(len(time)):
-                t = time[i]
-                if t >= t0 and t < t1:
-                    if begin is None:
-                        begin = i
-                    else:
-                        end = i
-                    count += 1
-                    if size is not None:
-                        if count >= size:
-                            break
-        if begin is None:
-            return (None, None)
-        return (self.dataSlice(self.tohlcv, begin, end), self.dataSlice(self.technical, begin, end))   
-        
-    
-def step():
-    server = BitflyData('bitfly', 'M15')
-    server.loadFromCsv('./data/bitflyer_btcjpy_m15.csv') 
-    api = StubAPI(server)
-    data = api.initialData(0)
-    if data is None:
-        return
-    
-    indicators = Indicator.makeIndicators(indicator_list)
-    buffer = DataBuffer(indicators)
-    buffer.loadData(data)
-    
-    print("last: ", buffer.lastTime())
-    
-    d = api.nextData()
-    while d is not None:
-        #print(d[c.TIME])
-        buffer.addData(d)
-        d = api.nextData()        
-
-
-def save(filepath, data:dict, columns):
-    time = data[c.TIME]
-    n = len(time)
-    arrays = []
-    for column in columns:
-        arrays.append(data[column])
-        
-    out = []
-    for i in range(n):
-        d = []
-        for j in range(len(columns)):
-            d.append(arrays[j][i])
-        out.append(d)
-    
-    df = pd.DataFrame(data=out, columns=columns)
-    df.to_csv(filepath, index=False)
-    
-def acc(array):
-    s = 0.0
-    out = []
-    for a in array:
-        s += a
-        out.append(s)
-    return out
-
-def trade():
-    indicator_param = {'ATR14': {ind.TYPE:ind.ATR, p.WINDOW:14}}
+def trade(server, atr_coef, atr_window):
+    indicator_param = {'ATR': {ind.TYPE:ind.ATR, p.WINDOW:atr_window}}
     indicators = Indicator.makeIndicators(indicator_param)
-    server = BitflyData('bitfly', 'M15')
-    server.loadFromCsv('../data/btcjpy_m15.csv') 
+
     api = StubAPI(server)    
     buffer = DataBuffer(indicators)    
     buffer.loadData(api.allData())
-    print('len: ', buffer.length(), buffer.technical.keys())
-    print('from:', buffer.fromTime(), 'to: ', buffer.lastTime())
+    #print('len: ', buffer.length(), buffer.technical.keys())
+    #print('from:', buffer.fromTime(), 'to: ', buffer.lastTime())
     #tohlcv, technical_data = buffer.dataByDate(2020, 7, 5)
     tohlcv = buffer.tohlcv
     technical_data = buffer.technical
 
-    atr = technical_data['ATR14']
-    atralt = AtrAlternate(0.5, 1, indicators)
+    atr = technical_data['ATR']
+    atralt = AtrAlternate(atr_coef, 1, indicators)
 
-    atralt.simulateEveryBar(tohlcv)
-    print(tohlcv.keys())
-    save('./trade.csv', tohlcv, [c.TIME, c.OPEN, c.HIGH, c.LOW, c.CLOSE, 'ATR', 'long_price_open', 'long_price_close', 'short_price_open', 'short_price_close'])
-
+    summary = atralt.simulateEveryBar(tohlcv)
+    #print(tohlcv.keys())
+    #save('./trade_gold.csv', tohlcv, [c.TIME, c.OPEN, c.HIGH, c.LOW, c.CLOSE, 'ATR', 'long_price_open', 'long_price_close', 'short_price_open', 'short_price_close'])
 
     time = array2graphShape(tohlcv, [c.TIME])
-    long_ror = array2graphShape(tohlcv, ['long_ror'])
-    long_ror_acc = acc(long_ror)
-    short_ror = array2graphShape(tohlcv, ['short_ror'])
-    short_ror_acc = acc(short_ror)
-    
-    (fig, axes) = gridFig([4, 1, 4], (15, 10))
-    fig.subplots_adjust(hspace=0.6, wspace=0.4)
-    graph1 = CandlePlot(fig, axes[0], 'btcjpy')
-    keys = [c.OPEN, c.HIGH, c.LOW, c.CLOSE]
-    graph1.drawCandle(time, tohlcv, keys)
-    #graph1.drawLine(time, long_price)
-    #graph1.drawLine(time, short_price, color='blue')
-       
-    graph2 = CandlePlot(fig, axes[1], 'ATR')
-    graph2.drawLine(time, atr, color='red')
-    
-
-    graph3 = CandlePlot(fig, axes[2], 'Profit')
-    graph3.drawLine(time, long_ror_acc, color='red')
-    graph3.drawLine(time, short_ror_acc, color='blue')
-    
+    long_profit_acc = tohlcv['long_profit_acc']
+    short_profit_acc = tohlcv['short_profit_acc']
    
-def test():
-    server = BitflyData('bitfly', 'M15')
-    server.loadFromCsv('../data/bitflyer_btcjpy_m15.csv') 
-    api = StubAPI(server)
-    #t = jp.localize(datetime(2020, 7, 5, 7, 0))
-    #data = api.server.dataFrom(t,  2 * 4 * 24)
-    data = api.allData()
-    indicators = Indicator.makeIndicators(indicator_list)
-    buffer = DataBuffer(indicators)
-    buffer.loadData(data)
-    print('len: ', buffer.length(), buffer.technical.keys())
-
-
-    
-    time = array2graphShape(data, [c.TIME])
-    (fig, axes) = gridFig([5, 4, 4], (15, 15))
+    (fig, axes) = gridFig([1], (12, 4))
     fig.subplots_adjust(hspace=0.6, wspace=0.4)
-    graph1 = CandlePlot(fig, axes[0], 'btcjpy')
-    keys =  [c.OPEN, c.HIGH, c.LOW, c.CLOSE]
-    graph1.drawCandle(time, data, keys)
+    #graph1 = CandlePlot(fig, axes[0], server.title())
+    #keys = [c.OPEN, c.HIGH, c.LOW, c.CLOSE]
+    #graph1.drawCandle(time, tohlcv, keys)
+   #graph1.drawLine(time, long_price)
+   #graph1.drawLine(time, short_price, color='blue')
+      
+    #graph2 = CandlePlot(fig, axes[0], 'ATR')
+    #graph2.drawLine(time, atr, color='red')
+    graph3 = CandlePlot(fig, axes[0], 'Profit of ' + server.title() + '  coef: ' + str(atr_coef) + ' window: ' + str(atr_window))
+    graph3.drawLine(time, long_profit_acc, color='red')
+    graph3.drawLine(time, short_profit_acc, color='blue')    
+    
+    return tohlcv
 
-    ma5 = buffer.technical['MA20']
-    
-    bbr = buffer.technical['BBRATIO']
-    graph2 = CandlePlot(fig, axes[1], 'bbratio')
-    graph2.drawLine(time, bbr, color='red')
-    
-    vq = buffer.technical['VQ']
-    graph3 = CandlePlot(fig, axes[2], 'vq')
-    graph3.drawLine(time, vq, color='blue')
+
+def isnanInVector(vector):
+    for v in vector:
+        if np.isnan(v):
+            return True
+        elif v is None:
+            return True
+    return False
+       
+def vectorize(data: dict, keys):
+    d = data[keys[0]]
+    n = len(d)
+    m = len(keys) - 1
+    data_list = []
+    for key in keys:
+        data_list.append(data[key])
+    x = []
+    y = []
+    for i in range(n):
+        vector = []
+        for j in range(m + 1):
+            vector.append(data_list[j][i])
+        if  isnanInVector(vector) == False:
+            y.append(vector[0])
+            x.append(vector[1:])
+    return (np.array(x), np.array(y))
 
     
+def splitData(size, n_splits):
+    l = int(size / n_splits)
+    out = []
+    for i in range(n_splits):
+        train = []
+        test = []
+        begin = i * l
+        stop = (i + 1) * l
+        if i == n_splits - 1:
+            stop = size
+        for j in range(begin, stop):
+            test.append(j)
+        for j in range(0, begin):
+            train.append(j)
+        for j in range(stop, size):
+            train.append(j)
+        out.append([train, test])
+    return out
+
+def fitting(features:dict, data:dict):
+    indicators = Indicator.makeIndicators(features)
+    for indicator in indicators:
+        indicator.calc(data)
+    
+    keys = ['long_ror'] + list(features.keys())
+    x, y = vectorize(data, keys)
+    
+    print(x.shape, y.shape)
+    
+    
+    
+    
+    
+    
+    
+    
+def testGemforex1():
+    title = 'Gold'
+    interval = 'M5'
+    csv_path = '../data/gemforex/XAUUSD_M5_202010262200_202203281055.csv'
+    server = GemforexData(title, interval)
+    server.loadFromCsv(csv_path)
+    for window in [7, 10, 14, 21]:
+        for coef in [0.3, 0.4, 0.5, 0.6, 0.7, 0.8]:    
+            trade(server, coef, window)
+
+def testGemforex2():
+    title = 'Gold'
+    interval = 'M5'
+    csv_path = '../data/gemforex/XAUUSD_M5_202010262200_202203281055.csv'
+    server = GemforexData(title, interval)
+    server.loadFromCsv(csv_path)
+    coef = 0.5
+    window = 14
+    data = trade(server, coef, window)    
+    features = {        'ROR': {ind.TYPE:ind.ROR},
+                        'ATR': {ind.TYPE:ind.ATR, p.WINDOW: 14},
+                        'BBRatio': {ind.TYPE:ind.BB_RATIO, p.WINDOW: 20, p.SIGMA: 2.0},
+                        'ADX':{ind.TYPE:ind.ADX, p.WINDOW: 14},
+                        'PPO':{ind.TYPE:ind.PPO, p.FAST: 12, p.SLOW: 26},
+                        'AroonOSC': {ind.TYPE:ind.AROON_OSC, p.WINDOW: 25},
+                        'CCI': {ind.TYPE:ind.CCI, p.WINDOW: 20},
+                        'MACDHist': {ind.TYPE:ind.MACD_HIST, p.FAST: 12, p.SLOW: 26, p.SIGNAL: 9},
+                        'MFI': {ind.TYPE:ind.MFI, p.WINDOW:14},
+                        'MOM': {ind.TYPE:ind.MOMENTUM, p.WINDOW: 26},
+                        'RSI': {ind.TYPE:ind.RSI, p.WINDOW: 14},
+                        'HTDCPeriod': {ind.TYPE: ind.HT_DC_PERIOD},
+                        'HTDCPhase': {ind.TYPE: ind.HT_DC_PHASE},
+                        'HTPhasorInphase': {ind.TYPE: ind.HT_PHASOR_INPHASE},
+                        'HTPhasorQuadrature': {ind.TYPE: ind.HT_PHASOR_QUADRATURE},
+                        'HTTrendmode': {ind.TYPE: ind.HT_TRENDMODE},
+                        'HTTrendline': {ind.TYPE: ind.HT_TRENDLINE},
+                        'LINEArreg': {ind.TYPE: ind.LINEARREG, p.WINDOW: 14},
+                        'LINEArregAngle': {ind.TYPE: ind.LINEARREG_ANGLE, p.WINDOW: 14},
+                        'LINEArregIntercept': {ind.TYPE: ind.LINEARREG_INTERCEPT, p.WINDOW: 14},
+                        'LINEArregSlope': {ind.TYPE: ind.LINEARREG_SLOPE, p.WINDOW: 14},
+                        'Beta': {ind.TYPE: ind.BETA, p.WINDOW: 5},
+                        'Kama': {ind.TYPE: ind.KAMA, p.WINDOW: 30},
+                        'CandleBody': {ind.TYPE: ind.CANDLE_BODY},
+                        'Spike': {ind.TYPE: ind.SPIKE},
+                        'Weekday': {ind.TYPE: ind.WEEKDAY},
+                        'TimeBand': {ind.TYPE: ind.TIMEBAND}
+                       }
+    
+
+    fitting(features, data)
+    
+    
+def testBitfly():
+    server = BitflyData('btcjpy', 'M15')
+    server.loadFromCsv('../data/bitflyer/btcjpy_m15.csv') 
+    data = trade(server, 0.5, 14)
+    
+    features = {        'ADX':{ind.TYPE:ind.ADX, p.WINDOW: 14},
+                        'ADXR':{ind.TYPE:ind.ADXR, p.WINDOW: 14},
+                        'APO': {ind.TYPE:ind.APO, p.FAST: 12, p.SLOW: 26},
+                        'AROON_DOWN': {ind.TYPE: ind.AROON_DOWN, p.WINDOW: 14},
+                        'AROON_UP': {ind.TYPE: ind.AROON_UP, p.WINDOW: 14},
+                        'AROON_OSC': {ind.TYPE: ind.AROON_OSC, p.WINDOW: 14},
+                        'CCI': {ind.TYPE:ind.CCI, p.WINDOW: 14},
+                        'DX': {ind.TYPE:ind.DX, p.WINDOW: 14},
+                        'MACD': {ind.TYPE:ind.MACD, p.FAST: 12, p.SLOW: 26, p.SIGNAL: 9 },
+                        'MACD_signal': {ind.TYPE:ind.MACD_SIGNAL, p.FAST: 12, p.SLOW: 26, p.SIGNAL: 9 },
+                        'MACD_hist': {ind.TYPE:ind.MACD_HIST, p.FAST: 12, p.SLOW: 26, p.SIGNAL: 9 },
+                        'MFI': {ind.TYPE:ind.MFI, p.WINDOW:14},
+                        'MOM': {ind.TYPE:ind.MOMENTUM, p.WINDOW: 10},
+                        'RSI': {ind.TYPE:ind.RSI, p.WINDOW: 14},
+                        'STOCHASTIC_slowk': {ind.TYPE: ind.STOCHASTIC_SLOWK, p.FASTK: 5, p.SLOWK: 3, p.SLOWD: 3},
+                        'STOCHASTIC_slowd': {ind.TYPE: ind.STOCHASTIC_SLOWD, p.FASTK: 5, p.SLOWK: 3, p.SLOWD: 3},
+                        'STOCHASTIC_fastk': {ind.TYPE: ind.STOCHASTIC_FASTK, p.FASTK: 5, p.FASTD: 3},
+                        'ULTOSC': {ind.TYPE: ind.ULTOSC, p.FAST: 7, p.MID: 14, p.SLOW: 28},
+                        'WILLR': {ind.TYPE: ind.WILLR, p.WINDOW: 14},
+                        'HT_DC_period': {ind.TYPE: ind.HT_DC_PERIOD},
+                        'HT_DC_phase': {ind.TYPE: ind.HT_DC_PHASE},
+                        'HT_PHASOR_inphase': {ind.TYPE: ind.HT_PHASOR_INPHASE},
+                        'HT_PHASOR_quadrature': {ind.TYPE: ind.HT_PHASOR_QUADRATURE},
+                        'HT_TRENDLINE': {ind.TYPE: ind.HT_TRENDLINE},
+                        'HT_TRENDMODE': {ind.TYPE: ind.HT_TRENDMODE},
+                        'Beta': {ind.TYPE: ind.BETA, p.WINDOW: 5},
+                        'LINEARREG': {ind.TYPE: ind.LINEARREG, p.WINDOW: 14},
+                        'LINEARREG_ANGLE': {ind.TYPE: ind.LINEARREG_ANGLE, p.WINDOW: 14},
+                        'LINEARREG_INTERCEPT': {ind.TYPE: ind.LINEARREG_INTERCEPT, p.WINDOW: 14},
+                        'LINEARREG_SLOPE': {ind.TYPE: ind.LINEARREG_SLOPE, p.WINDOW: 14},
+                        'STDDEV': {ind.TYPE: ind.STDDEV, p.WINDOW: 5, p.SIGMA: 1},
+                        'BB_UP': {ind.TYPE: ind.BB_UP, p.WINDOW: 5, p.SIGMA: 2},
+                        'BB_DOWN': {ind.TYPE: ind.BB_DOWN, p.WINDOW: 5, p.SIGMA: 2},
+                        'BB_MID': {ind.TYPE: ind.BB_MID, p.WINDOW: 5, p.SIGMA: 2},
+                        'DEMA': {ind.TYPE: ind.DEMA, p.WINDOW: 30},
+                        'EMA': {ind.TYPE: ind.EMA, p.WINDOW: 30},
+                        'KAMA': {ind.TYPE: ind.KAMA, p.WINDOW: 30},
+                        'MA': {ind.TYPE: ind.MA, p.WINDOW: 30},
+                        'MIDPOINT': {ind.TYPE: ind.MIDPOINT, p.WINDOW: 14},
+                        'T3': {ind.TYPE: ind.T3, p.WINDOW: 5},
+                        'TEMA': {ind.TYPE: ind.TEMA, p.WINDOW: 30},
+                        'TRIMA': {ind.TYPE: ind.TRIMA, p.WINDOW: 30},
+                        'WMA': {ind.TYPE: ind.WMA, p.WINDOW: 30}
+                       }
+    
+
+    fitting(features, data)
+    print(data.keys())
     
     
 if __name__ == '__main__':
-    trade()
+    testBitfly()

@@ -7,7 +7,7 @@ Created on Thu Feb 10 14:20:18 2022
 
 import numpy as np
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from scipy.stats import rankdata
 from const import BasicConst, IndicatorConst, ParameterConst
 import talib as ta
@@ -52,8 +52,9 @@ class TaLib:
 
     @classmethod
     def BB(cls, ohlcv: dict, window, sigma, key=c.CLOSE):
+        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
         (up, mid, low) = ta.BBANDS(np.array(ohlcv[key]), timeperiod=window, nbdevup=sigma, nbdevdn=sigma, matype=0)
-        return (up, mid, low)
+        return (up - hilo, mid - hilo, low - hilo)
 
     @classmethod
     def BBRATIO(cls, ohlcv: dict, window, sigma, key=c.CLOSE):
@@ -66,7 +67,7 @@ class TaLib:
 
     @classmethod
     def BETA(cls, ohlcv: dict, window):
-        return ta.BETA(np.array(ohlcv[c.HIHG]), np.array(ohlcv[c.LOW]), timeperiod=window)
+        return ta.BETA(np.array(ohlcv[c.HIGH]), np.array(ohlcv[c.LOW]), timeperiod=window)
 
     @classmethod
     def CCI(cls, ohlcv:dict, window):
@@ -74,7 +75,8 @@ class TaLib:
 
     @classmethod
     def DEMA(cls, ohlcv:dict, window):
-        return ta.DEMA(np.array(ohlcv[c.close]), timeperiod=window)
+        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        return ta.DEMA(np.array(ohlcv[c.CLOSE]), timeperiod=window) - hilo
 
     @classmethod
     def DI_PLUS(cls, ohlcv:dict, window):
@@ -90,7 +92,8 @@ class TaLib:
 
     @classmethod
     def EMA(cls, ohlcv: dict, window, key=c.CLOSE):
-        return ta.EMA(np.array(ohlcv[key]), timeperiod=window)  
+        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        return ta.EMA(np.array(ohlcv[key]), timeperiod=window) - hilo
 
     @classmethod
     def HT_DC_PERIOD(cls, ohlcv: dict):
@@ -110,11 +113,13 @@ class TaLib:
 
     @classmethod
     def HT_TRENDLINE(cls, ohlcv: dict):
-        return ta.HT_TRENDLINE(np.array(ohlcv[c.CLOSE]))
+        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        return ta.HT_TRENDLINE(np.array(ohlcv[c.CLOSE])) - hilo
 
     @classmethod
     def KAMA(cls, ohlcv: dict, window):
-        return ta.KAMA(np.array(ohlcv[c.CLOSE]), timeperiod=window)
+        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        return ta.KAMA(np.array(ohlcv[c.CLOSE]), timeperiod=window) - hilo
 
     
     @classmethod
@@ -134,6 +139,11 @@ class TaLib:
         return ta.LINEARREG_SLOPE(np.array(ohlcv[c.CLOSE]), timeperiod=window)
 
     @classmethod
+    def MA(cls, ohlcv: dict, window, key=c.CLOSE):
+        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        return ta.MA(np.array(ohlcv[key]), timeperiod=window) - hilo
+    
+    @classmethod
     def MACD(cls, ohlcv:dict, fast, slow, signal):
         return ta.MACD(np.array(ohlcv[c.CLOSE]), fastperiod=fast, slowperiod=slow, signalperiod=signal)
 
@@ -143,11 +153,16 @@ class TaLib:
 
     @classmethod
     def MIDPOINT(cls, ohlcv:dict, window):
-        return ta.MIDPOINT(np.array(ohlcv[c.CLOSE]), timeperiod=window)
+        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        return ta.MIDPOINT(np.array(ohlcv[c.CLOSE]), timeperiod=window) - hilo
 
     @classmethod
     def MOM(cls, ohlcv:dict, window):
         return ta.MOM(np.array(ohlcv[c.CLOSE]), timeperiod=window)
+    
+    @classmethod
+    def PPO(cls, ohlcv:dict, fast: int, slow: int):
+        return ta.PPO(np.array(ohlcv[c.CLOSE]), fastperiod=fast, slowperiod=slow)
 
     @classmethod
     def RCI(cls, ohlcv:dict, window):
@@ -179,27 +194,35 @@ class TaLib:
 
     @classmethod
     def SMA(cls, ohlcv: dict, window, key=c.CLOSE):
-        return ta.SMA(np.array(ohlcv[key]), timeperiod=window)
+        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        return ta.SMA(np.array(ohlcv[key]), timeperiod=window) - hilo
 
     @classmethod
+    def STDDEV(cls, ohlcv: dict, window: int, sigma):
+        return ta.STDDEV(np.array(ohlcv[c.CLOSE]), timeperiod=window, nbdev=sigma)        
+    
+    @classmethod
     def STOCHASTIC(cls, ohlcv: dict, fastk, slowk, slowd):
-        return ta.STOCH(np.array(ohlcv[c.HIGH]), np.array(ohlcv[c.LOW]), np.array(ohlcv[c.CLOSE]), fastk_window = fastk, fastk_matype=0, slowk_window=slowk, slowk_matype=0, slowd_window=slowd, slowd_matype=0)
+        return ta.STOCH(np.array(ohlcv[c.HIGH]), np.array(ohlcv[c.LOW]), np.array(ohlcv[c.CLOSE]), fastk_period = fastk, slowk_period=slowk, slowk_matype=0, slowd_period=slowd, slowd_matype=0)
 
     @classmethod
     def STOCHASTICFAST(cls, ohlcv: dict, fastk, fastd):
-        return ta.STOCHF(np.array(ohlcv[c.HIGH]), np.array(ohlcv[c.LOW]), np.array(ohlcv[c.CLOSE]), fastk_window = fastk, fastk_matype=0, fastd_window=fastd, fastd_matype=0)
+        return ta.STOCHF(np.array(ohlcv[c.HIGH]), np.array(ohlcv[c.LOW]), np.array(ohlcv[c.CLOSE]), fastk_period = fastk, fastd_period=fastd, fastd_matype=0)
 
     @classmethod
     def T3(cls, ohlcv: dict, window, vfactor=0):
-        return ta.T3(np.array(ohlcv[c.CLOSE]), timeperiod=window, vfactor=vfactor) + (np.array(ohlcv[c.HIGH]) + np.array(ohlcv[c.LOW])) / 2
+        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        return ta.T3(np.array(ohlcv[c.CLOSE]), timeperiod=window, vfactor=vfactor) - hilo
 
     @classmethod
     def TEMA(cls, ohlcv: dict, window):
-        return ta.TEMA(np.array(ohlcv[c.CLOSE]), timeperiod=window)
+        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        return ta.TEMA(np.array(ohlcv[c.CLOSE]), timeperiod=window) - hilo
                     
     @classmethod
     def TRIMA(cls, ohlcv: dict, window):
-        return ta.TRIMA(np.array(ohlcv[c.CLOSE]), timeperiod=window)
+        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        return ta.TRIMA(np.array(ohlcv[c.CLOSE]), timeperiod=window) - hilo
   
     @classmethod
     def TRIX(cls, ohlcv: dict, window):
@@ -241,7 +264,10 @@ class TaLib:
     def WILLR(cls, ohlcv: dict, window):
         return ta.WILLR(np.array(ohlcv[c.HIGH]), np.array(ohlcv[c.LOW]), np.array(ohlcv[c.CLOSE]), timeperiod=window)
 
-
+    @classmethod
+    def WMA(cls, ohlcv: dict, window):
+        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        return ta.WMA(np.array(ohlcv[c.HIGH]), timeperiod=window) - hilo
 
 def fillZero(array):
     for i in range(len(array)):
@@ -277,6 +303,12 @@ class Indicator:
         self.params[key] = value
         
     def calc(self, ohlcv: dict):
+        ret = self.calc2(ohlcv)
+        ohlcv[self.name] = ret
+        
+    def calc2(self, ohlcv: dict):
+        if self.typ == t.ROR:
+            return self.ror(ohlcv)
         if self.typ == t.SMA:
             return TaLib.SMA(ohlcv, self.params[p.WINDOW])
         if self.typ == t.EMA:
@@ -287,10 +319,13 @@ class Indicator:
         if self.typ == t.BB_DOWN:
             (up, down, mid) = TaLib.BB(ohlcv, self.params[p.WINDOW], self.params[p.SIGMA])
             return down
+        if self.typ == t.BB_MID:
+            (up, down, mid) = TaLib.BB(ohlcv, self.params[p.WINDOW], self.params[p.SIGMA])
+            return mid
         if self.typ == t.BB_RATIO:
             return TaLib.BBRATIO(ohlcv, self.params[p.WINDOW], self.params[p.SIGMA])
         if self.typ == t.ATR:
-            return ATR(ohlcv, self.params[p.WINDOW])
+            return TaLib.ATR(ohlcv, self.params[p.WINDOW])
         if self.typ == t.TRANGE:
             return TaLib.TRANGE(ohlcv)
         if self.typ == t.ADX:
@@ -300,7 +335,7 @@ class Indicator:
         if self.typ == t.DI_MINUS:
             return TaLib.DI_MINUS(ohlcv, self.params[p.WINDOW])       
         if self.typ == t.ADXR:
-            return TaLib.ADXR(ohlcv)
+            return TaLib.ADXR(ohlcv, self.params[p.WINDOW])
         if self.typ == t.AROON_DOWN:
             aroon_down, aroon_up = TaLib.AROON(ohlcv, self.params[p.WINDOW])
             return aroon_down
@@ -311,19 +346,23 @@ class Indicator:
             return TaLib.AROONOSC(ohlcv, self.params[p.WINDOW])
         if self.typ == t.RSI:
             return TaLib.RSI(ohlcv, self.params[p.WINDOW]) 
+        if self.typ == t.MA:
+            return TaLib.MA(ohlcv, self.params[p.WINDOW])
         if self.typ == t.MACD:
-            macd, macd_signal, macd_hist =  TaLib.MACD(ohlcv, self.params[p.FAST], self.params[p.SLOW], self.params[p.SINGAL])
+            macd, macd_signal, macd_hist =  TaLib.MACD(ohlcv, self.params[p.FAST], self.params[p.SLOW], self.params[p.SIGNAL])
             return macd
         if self.typ == t.MACD_SIGNAL:
-            macd, macd_signal, macd_hist = TaLib.MACD(ohlcv, self.params[p.FAST], self.params[p.SLOW], self.params[p.SINGAL])
+            macd, macd_signal, macd_hist = TaLib.MACD(ohlcv, self.params[p.FAST], self.params[p.SLOW], self.params[p.SIGNAL])
             return macd_signal
         if self.typ == t.MACD_HIST:
-            macd, macd_signal, macd_hist =  TaLib.MACD(ohlcv, self.params[p.FAST], self.params[p.SLOW], self.params[p.SINGAL])
+            macd, macd_signal, macd_hist =  TaLib.MACD(ohlcv, self.params[p.FAST], self.params[p.SLOW], self.params[p.SIGNAL])
             return macd_hist                
+        if self.typ == t.PPO:
+            return TaLib.PPO(ohlcv, self.params[p.FAST], self.params[p.SLOW])
         if self.typ == t.ROC:
             return TaLib.ROC(ohlcv, self.params[p.WINDOW])
         if self.typ == t.MOMENTUM:
-            return TaLib.MOM(ohlcv, self.parms[p.WINDOW])
+            return TaLib.MOM(ohlcv, self.params[p.WINDOW])
         if self.typ == t.APO:
             return TaLib.APO(ohlcv, self.params[p.FAST], self.params[p.SLOW])
         if self.typ == t.VQ:
@@ -338,6 +377,8 @@ class Indicator:
             return TaLib.DX(ohlcv, self.params[p.WINDOW])
         if self.typ == t.MFI:
             return TaLib.MFI(ohlcv, self.params[p.WINDOW])
+        if self.typ == t.STDDEV:
+            return TaLib.STDDEV(ohlcv, self.params[p.WINDOW], self.params[p.SIGMA])
         if self.typ == t.STOCHASTIC_SLOWD:
             slowk, slowd = TaLib.STOCHASTIC(ohlcv, self.params[p.FASTK], self.params[p.SLOWK], self.params[p.SLOWD])
             return slowd
@@ -345,7 +386,7 @@ class Indicator:
             slowk, slowd = TaLib.STOCHASTIC(ohlcv, self.params[p.FASTK], self.params[p.SLOWK], self.params[p.SLOWD])
             return slowk
         if self.typ == t.STOCHASTIC_FASTK:
-            fastk, fastd = TaLib.STOCHASTIC(ohlcv, self.params[p.FASTK], self.params[p.FASTD])
+            fastk, fastd = TaLib.STOCHASTICFAST(ohlcv, self.params[p.FASTK], self.params[p.FASTD])
             return fastk
         if self.typ == t.STOCHASTIC_FASTD:
             fastk, fastd = TaLib.STOCHASTICFAST(ohlcv, self.params[p.FASTK], self.params[p.FASTD])
@@ -361,7 +402,7 @@ class Indicator:
         if self.typ == t.HT_PHASOR_INPHASE:
             inphase, quadrature = TaLib.HT_PHASOR(ohlcv)
             return inphase
-        if self.typ == t.HT_PHASOR_QuADRATURE:
+        if self.typ == t.HT_PHASOR_QUADRATURE:
             inphase, quadrature = TaLib.HT_PHASOR(ohlcv)
             return quadrature
         if self.typ == t.HT_TRENDMODE:
@@ -369,12 +410,12 @@ class Indicator:
         if self.typ == t.HT_TRENDLINE:
             return TaLib.HT_TRENDLINE(ohlcv)
         if self.typ == t.BETA:
-            return TaLib.BETA(ohlcv)
+            return TaLib.BETA(ohlcv, self.params[p.WINDOW])
         if self.typ == t.LINEARREG:
             return TaLib.LINEARREG(ohlcv, self.params[p.WINDOW])
         if self.typ == t.LINEARREG_ANGLE:
             return TaLib.LINEARREG_ANGLE(ohlcv, self.params[p.WINDOW])
-        if self.typ == t.LINEARREG_INTERCPT:
+        if self.typ == t.LINEARREG_INTERCEPT:
             return TaLib.LINEARREG_INTERCEPT(ohlcv, self.params[p.WINDOW])
         if self.typ == t.LINEARREG_SLOPE:
             return TaLib.LINEARREG_SLOPE(ohlcv, self.params[p.WINDOW])
@@ -391,7 +432,72 @@ class Indicator:
         if self.typ == t.TRIMA:
             return TaLib.TRIMA(ohlcv, self.params[p.WINDOW])
         if self.typ == t.TRIX:
-            return TaLib.TRIX(ohlcv, self.params[p.WINDOW])        
+            return TaLib.TRIX(ohlcv, self.params[p.WINDOW])  
+        if self.typ == t.WMA:
+            return TaLib.WMA(ohlcv, self.params[p.WINDOW])     
+        if self.typ == t.WEEKDAY:
+            return self.weekday(ohlcv)
+        if self.typ == t.TIMEBAND:
+            return self.timeband(ohlcv)
+        if self.typ == t.CANDLE_BODY:
+            return self.candleBody(ohlcv)
+        if self.typ == t.SPIKE:
+            return self.spike(ohlcv)
+        
+    def ror(self, tohlcv:dict):
+        out = []
+        out.append(np.nan)
+        close = tohlcv[c.CLOSE]
+        for i in range(1, len(close)):
+            out.append((close[i] - close[i - 1])/ close[i - 1])
+        return np.array(out)
+    
+    def weekday(self, tohlcv):
+        time = tohlcv[c.TIME]
+        out = []
+        for t0 in time:
+            t = t0 - timedelta(hours=7)
+            out.append(float(t.weekday()))
+        return np.array(out)
+    
+    def timeband(self, tohlcv):
+        time = tohlcv[c.TIME]
+        out = []
+        for t0 in time:
+            hour = t0.hour
+            if hour < 7:
+                b = 0
+            elif hour < 15:
+                b = 1
+            elif hour < 17:
+                b = 2
+            elif hour < 21:
+                b = 3
+            else:
+                b = 0
+            out.append(float(b))
+        return np.array(out)
+    
+    def candleBody(self, tohlcv):
+        op = tohlcv[c.OPEN]
+        close = tohlcv[c.CLOSE]
+        out = []
+        for o, cl in zip(op, close):
+            out.append(float(cl - o) / float(o))
+        return np.array(out)
+    
+    def spike(self, tohlcv):
+        open = tohlcv[c.OPEN]
+        high = tohlcv[c.HIGH]
+        low = tohlcv[c.LOW]
+        close = tohlcv[c.CLOSE]
+        out = []
+        for op, hi, lo, cl in zip(open, high, low, close):
+            if (cl - op ) > 0:
+                out.append(float(hi - cl) / float(cl))
+            else:
+                out.append(float(lo - cl) / float(cl))
+        return np.array(out)        
         
     def description(self):
         out = "[" + self.name + "] " + self.typ + "  "

@@ -19,6 +19,7 @@ import matplotlib.gridspec as gridspec
 DATE_FORMAT_TIME = '%H:%M'
 DATE_FORMAT_DAY = '%m-%d'
 DATE_FORMAT_DAY_TIME = '%m-%d %H:%M'
+DATE_FORMAT_YEAR = '%y/%m'
 
 
 def array2graphShape(data:dict, keys):
@@ -156,10 +157,11 @@ class BoxGraphic:
 
     
 class CandlePlot:
-    def __init__(self, fig, ax, title, date_format=DATE_FORMAT_DAY_TIME):
+    def __init__(self, fig, ax, title, date_format=DATE_FORMAT_YEAR ):
         self.fig = fig
         self.ax = ax
         self.title = title
+        self.ax.set_title(self.title)
         self.ax.grid(True)
         self.ax.xaxis_date()
         self.ax.xaxis.set_major_formatter(mdates.DateFormatter(date_format))
@@ -167,7 +169,7 @@ class CandlePlot:
         
     def drawCandle(self, time, data:dict, keys, bar_width=None, timerange=None):    
         ohlc = array2graphShape(data, keys) 
-        self.ax.set_title(self.title)
+        
         n = len(time)
         t0 = awarePyTime2Float(time[0])
         t1 = awarePyTime2Float(time[-1])

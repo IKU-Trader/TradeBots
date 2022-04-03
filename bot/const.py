@@ -14,6 +14,7 @@ class BasicConst:
         self.LOW = 'low'
         self.CLOSE = 'close'
         self.VOLUME = 'volume'
+        self.SPREAD = 'spread'
         self.BUY_VOL = 'buy_vol'
         self.SELL_VOL = 'sell_vol'
         
@@ -25,6 +26,7 @@ class IndicatorConst:
 # Techinical indicators
     def __init__(self):
         self.TYPE = 'type'
+        self.ROR = 'ror'
         
         self.ADX = 'adx'
         self.ADXR = 'adxr'
@@ -36,6 +38,7 @@ class IndicatorConst:
         self.ATR = 'atr'
         self.BB_DOWN = 'bb_down'
         self.BB_UP = 'bb_up'
+        self.BB_MID = 'bb_mid'
         self.BB_RATIO = 'bb_ratio'
         self.BETA = 'beta'
         self.CCI = 'cci'
@@ -55,17 +58,20 @@ class IndicatorConst:
         self.LINEARREG_ANGLE = 'linearreg_angle'
         self.LINEARREG_INTERCEPT = 'linearreg_intercept'
         self.LINEARREG_SLOPE = 'linearreg_slope'
+        self.MA = 'ma'
         self.MACD = 'macd'
         self.MACD_SIGNAL = 'macd_signal'
         self.MACD_HIST = 'macd_hist'
         self.MFI = 'mfi'
         self.MIDPOINT = 'midpoint'
         self.MOMENTUM = 'momentum'
+        self.PPO = 'ppo'
         self.RCI = 'rci'
         self.ROC = 'roc'
         self.RSI = 'rsi'
         self.SAR = 'sar'
         self.SMA = 'sma'
+        self.STDDEV = 'stddev'
         self.STOCHASTIC_SLOWK = 'stochastic_slowk'
         self.STOCHASTIC_SLOWD = 'stochastic_slowd'
         self.STOCHASTIC_FASTK = 'stochastic_fastk'
@@ -78,6 +84,11 @@ class IndicatorConst:
         self.ULTOSC = 'ultosc'
         self.VQ = 'vq'
         self.WILLR = 'willr'
+        self.WEEKDAY = 'weekday'
+        self.WMA = 'wma'
+        self.TIMEBAND = 'timeband'
+        self.CANDLE_BODY = 'candle_body'
+        self.SPIKE = 'spike'
 
 class ParameterConst:
 # parameters
@@ -91,6 +102,7 @@ class ParameterConst:
         self.ACC = 'acc'
         self.MAX = 'max'
         self.FASTK = 'fastk'
+        self.FASTD = 'fastd'
         self.SLOWK = 'slowk'
         self.SLOWD = 'slowd'
 

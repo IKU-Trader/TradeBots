@@ -76,7 +76,7 @@ class S_TR:
         return tr
   
 class ATR:
-    def __init__(self, window):
+    def __init__(self, window: int):
         self.window = window
                 
     def calc(self, high: list, low: list, close: list):
@@ -86,7 +86,7 @@ class ATR:
         return sma.calc(vector)
     
 class S_ATR:
-    def __init__(self, window):
+    def __init__(self, window: int):
         self.window = window
         self.s_tr = S_TR(window)
         self.s_sma = S_SMA(window)
