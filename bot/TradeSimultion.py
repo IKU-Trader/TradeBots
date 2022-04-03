@@ -7,6 +7,7 @@ Created on Sun Feb  6 12:30:54 2022
 
 import numpy as np
 import pandas as pd
+import lightgbm as lgb
 
 from DataServer import GemforexData, BitflyData
 from DataBuffer import DataBuffer
@@ -109,6 +110,23 @@ def splitData(size, n_splits):
         out.append([train, test])
     return out
 
+
+def crossValidation(model, x, y):
+    length = y.shape[0]
+    indices = splitData(length, 5)
+    pred = np.full(y.shape, np.nan)
+    for [train_index, test_index] in indices:
+        model.fit(x[train_index], y[train_index])
+        pred[test_index] = model.predict(x[test_index])
+    return pred
+    
+def forceZero(predict, y):
+    length = y.shape[0]
+    for i in range(length):
+        if y[i] == 0.0:
+            predict[i] = 0.0
+    return
+    
 def fitting(features:dict, data:dict):
     indicators = Indicator.makeIndicators(features)
     for indicator in indicators:
@@ -119,6 +137,16 @@ def fitting(features:dict, data:dict):
     
     print(x.shape, y.shape)
     
+    model = lgb.LGBMRegressor(n_jobs=-1, random_state=1)
+    predict = crossValidation(model, x, y)
+    forceZero(predict, y)
+    
+    print(predict.shape)
+    
+    fig, ax = makeFig(1, 1, (8, 8))
+    ax.scatter(y, predict, alpha=0.5, s=5)
+    ax.set_xlim(-0.1, 0.2)
+    ax.set_ylim(-0.1, 0.2)
     
     
     
