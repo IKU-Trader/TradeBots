@@ -10,6 +10,7 @@ import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 from TechnicalAnalysis import TaLib
 from TechnicalLibrary import S_ATR
+from Math import Math
 from const import BasicConst, IndicatorConst, ParameterConst
 c = BasicConst()
 ind = IndicatorConst()
@@ -495,13 +496,7 @@ class AtrAlternate:
         
         return result
     
-    def acc(self, array):
-        s = 0.0
-        out = []
-        for a in array:
-            s += a
-            out.append(s)
-        return out
+
     
     def position2array(self, kind, length, key:str):
         value = np.zeros(length)
@@ -530,10 +525,10 @@ class AtrAlternate:
         tohlcv['long_ror'] = self.position2array(c.LONG, n, 'ror')
         tohlcv['short_ror'] = self.position2array(c.SHORT, n, 'ror')
 
-        tohlcv['long_profit_acc'] = self.acc(tohlcv['long_profit'])
-        tohlcv['short_profit_acc'] = self.acc(tohlcv['short_profit'])
-        tohlcv['long_ror_acc'] = self.acc(tohlcv['long_ror'])
-        tohlcv['short_ror_acc'] = self.acc(tohlcv['short_ror'])
+        tohlcv['long_profit_acc'] = Math.accumulate(tohlcv['long_profit'])
+        tohlcv['short_profit_acc'] = Math.accumulate(tohlcv['short_profit'])
+        tohlcv['long_ror_acc'] = Math.accumulate(tohlcv['long_ror'])
+        tohlcv['short_ror_acc'] = Math.accumulate(tohlcv['short_ror'])
 
 
     
