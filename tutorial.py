@@ -276,7 +276,7 @@ def trade(df):
     plt.show()
 
     #df.to_pickle('df_y.pkl')    
-    #df.to_excel('trade.xlsx', index=False)
+    df.to_csv('./report/richbtc_btcjpy_m15s.csv', index=False)
 
 def ml(df):
     df = df.dropna()
@@ -314,7 +314,8 @@ def ml(df):
     plt.legend(bbox_to_anchor=(1.05, 1))
     plt.show()
 
-    df.to_pickle('df_fit.pkl') 
+    df.to_csv('./report/ml_richbtc_btcjpy_m15s.csv', index=False)
+    #df.to_pickle('df_fit.pkl') 
 
 
 # OOS予測値を計算
@@ -362,7 +363,7 @@ def readCsv(filepath):
     
 
 if __name__ == '__main__':
-    df = readCsv("./data/bitflyer/btcjpy_m15.csv")
+    df = readCsv("./data/bitflyer/btcjpy_m15s.csv")
     #df = df.dropna()
     df = calc_features(df)
     trade(df)
