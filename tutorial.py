@@ -1,5 +1,6 @@
-import math
 
+import math
+import os
 import ccxt
 #from crypto_data_fetcher import GmoFetcher
 import joblib
@@ -50,8 +51,8 @@ def calc_features(df):
     df['ADX'] = talib.ADX(high, low, close, timeperiod=14)
     df['ADXR'] = talib.ADXR(high, low, close, timeperiod=14)
     df['APO'] = talib.APO(close, fastperiod=12, slowperiod=26, matype=0)
-    df['AROON_aroondown'], df['AROON_aroonup'] = talib.AROON(high, low, timeperiod=14)
-    df['AROONOSC'] = talib.AROONOSC(high, low, timeperiod=14)
+    df['AROON_down'], df['AROON_up'] = talib.AROON(high, low, timeperiod=14)
+    df['AROON_osc'] = talib.AROONOSC(high, low, timeperiod=14)
     df['BOP'] = talib.BOP(open, high, low, close)
     df['CCI'] = talib.CCI(high, low, close, timeperiod=14)
     df['DX'] = talib.DX(high, low, close, timeperiod=14)
@@ -64,8 +65,8 @@ def calc_features(df):
     df['PLUS_DI'] = talib.PLUS_DI(high, low, close, timeperiod=14)
     df['PLUS_DM'] = talib.PLUS_DM(high, low, timeperiod=14)
     df['RSI'] = talib.RSI(close, timeperiod=14)
-    df['STOCH_slowk'], df['STOCH_slowd'] = talib.STOCH(high, low, close, fastk_period=5, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0)
-    df['STOCHF_fastk'], df['STOCHF_fastd'] = talib.STOCHF(high, low, close, fastk_period=5, fastd_period=3, fastd_matype=0)
+    df['STOCH1_slowk'], df['STOCH2_slowd'] = talib.STOCH(high, low, close, fastk_period=5, slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0)
+    df['STOCH3_fastk'], df['STOCH4_fastd'] = talib.STOCHF(high, low, close, fastk_period=5, fastd_period=3, fastd_matype=0)
     df['STOCHRSI_fastk'], df['STOCHRSI_fastd'] = talib.STOCHRSI(close, timeperiod=14, fastk_period=5, fastd_period=3, fastd_matype=0)
     df['TRIX'] = talib.TRIX(close, timeperiod=30)
     df['ULTOSC'] = talib.ULTOSC(high, low, close, timeperiod1=7, timeperiod2=14, timeperiod3=28)
@@ -99,9 +100,9 @@ features = sorted([
     'ADX',
     'ADXR',
     'APO',
-    'AROON_aroondown',
-    'AROON_aroonup',
-    'AROONOSC',
+    'AROON_down',
+    'AROON_up',
+    'AROON_osc',
     'CCI',
     'DX',
     'MACD_macd',
@@ -114,9 +115,9 @@ features = sorted([
 #     'PLUS_DI',
 #     'PLUS_DM',
     'RSI',
-    'STOCH_slowk',
-    'STOCH_slowd',
-    'STOCHF_fastk',
+    'STOCH1_slowk',
+    'STOCH2_slowd',
+    'STOCH3_fastk',
 #     'STOCHRSI_fastd',
     'ULTOSC',
     'WILLR',
@@ -148,7 +149,12 @@ features = sorted([
     'WMA',
 ])
   
-    
+def fillZeroIfNan(df, columns):
+    for column in columns:
+        df2 = df[column]
+        for i in range(len(df2)):
+            if np.isnan(df2.iat[i]):
+                df2.iat[i] = 0  
 
 def calc_force_entry_price(entry_price=None, lo=None, pips=None):
     y = entry_price.copy()
@@ -164,7 +170,7 @@ def calc_force_entry_price(entry_price=None, lo=None, pips=None):
     return y, force_entry_time
 
 
-def trade(df):
+def trade(df, name):
 
     # 呼び値 (取引所、取引ペアごとに異なるので、適切に設定してください)
     pips = 1
@@ -196,61 +202,76 @@ def trade(df):
     fee = df['fee'] # maker手数料
 
     # 指値が約定したかどうか (0, 1)
-    df['buy_executed'] = ((df['buy_price'] / pips).round() > (df['lo'].shift(-1) / pips).round()).astype('float64')
-    df['sell_executed'] = ((df['sell_price'] / pips).round() < (df['hi'].shift(-1) / pips).round()).astype('float64')
+    df['buy_signal'] = ((df['buy_price'] / pips).round() > (df['lo'].shift(-1) / pips).round()).astype('float64')
+    df['sell_signal'] = ((df['sell_price'] / pips).round() < (df['hi'].shift(-1) / pips).round()).astype('float64')
 
     # yを計算
-    df['y_buy'] = np.where(
-                            df['buy_executed'],
-                            df['sell_fep'].shift(-horizon) / df['buy_price'] - 1 - 2 * fee,
+    df ['long_entry'] = np.where(
+                            df['buy_signal'],
+                            1,
+                            0
+                            )
+    df ['short_entry'] = np.where(
+                            df['sell_signal'],
+                            1,
+                            0
+                            )
+    
+    
+    df['long_ror'] = np.where(
+                            df['buy_signal'],
+                            df['sell_fep'].shift(-horizon) / df['buy_price'] - 1, #- 2 * fee,
                             0
                             )
     
     df['long_open'] = np.where(
-                            df['buy_executed'],
+                            df['buy_signal'],
                             df['buy_price'],
-                            np.nan
+                            0
                             )
     
     df['long_close'] = np.where(
-                            df['buy_executed'],
+                            df['buy_signal'],
                             df['sell_fep'].shift(-horizon),
-                            np.nan
+                            0
                             )
     
-    df['y_sell'] = np.where(
-                            df['sell_executed'],
-                            -(df['buy_fep'].shift(-horizon) / df['sell_price'] - 1) - 2 * fee,
+    df['short_ror'] = np.where(
+                            df['sell_signal'],
+                            -(df['buy_fep'].shift(-horizon) / df['sell_price'] - 1), #,- 2 * fee,
                             0
                             )
     
     df['short_open'] = np.where(
-                            df['sell_executed'],
+                            df['sell_signal'],
                             df['sell_price'],
-                            np.nan
+                            0
                             )
     
     df['short_close'] = np.where(
-                            df['sell_executed'],
+                            df['sell_signal'],
                             df['buy_fep'].shift(-horizon),
-                            np.nan
+                            0
                             )
+    
+    
+    fillZeroIfNan(df, ['buy_signal', 'sell_signal', 'long_entry', 'short_entry', 'long_open', 'short_open', 'long_close',  'short_close', 'long_ror', 'short_ror'])
 
     # バックテストで利用する取引コストを計算
     df['buy_cost'] = np.where(
-                            df['buy_executed'],
+                            df['buy_signal'],
                             df['buy_price'] / df['cl'] - 1 + fee,
                             0
                             )
     df['sell_cost'] = np.where(
-                            df['sell_executed'],
+                            df['sell_signal'],
                             -(df['sell_price'] / df['cl'] - 1) + fee,
                             0
                             )
 
     print('約定確率を可視化。時期によって約定確率が大きく変わると良くない。')
-    df['buy_executed'].rolling(1000).mean().plot(label='買い')
-    df['sell_executed'].rolling(1000).mean().plot(label='売り')
+    df['buy_signal'].rolling(1000).mean().plot(label='買い')
+    df['sell_signal'].rolling(1000).mean().plot(label='売り')
     plt.title('約定確率の推移')
     plt.legend(bbox_to_anchor=(1.05, 1))
     plt.show()
@@ -269,17 +290,24 @@ def trade(df):
     plt.show()
 
     print('毎時刻、この執行方法でトレードした場合の累積リターン')
-    df['y_buy'].cumsum().plot(label='買い')
-    df['y_sell'].cumsum().plot(label='売り')
+    df['long_ror'].cumsum().plot(label='買い')
+    df['short_ror'].cumsum().plot(label='売り')
     plt.title('累積リターン')
     plt.legend(bbox_to_anchor=(1.05, 1))
     plt.show()
 
     #df.to_pickle('df_y.pkl')    
-    df.to_csv('./report/richbtc_btcjpy_m15s.csv', index=False)
+    columns = ['timestamp', 'op', 'hi', 'cl', 'fee', 'ATR', 'buy_price', 'sell_price', 'buy_signal', 'sell_signal', 'long_entry', 'long_open', 'long_close', 'long_ror', 'short_entry', 'short_open', 'short_close', 'short_ror']
+    df2 = df[columns]
+    df2.to_csv('./report/richbtc_' + name  + '.csv', index=False)
 
-def ml(df):
+def ml(df, name):
+    columns = ['timestamp', 'op', 'hi', 'cl', 'fee'] + features + ['buy_price', 'sell_price', 'buy_signal', 'sell_signal', 'long_entry', 'long_open', 'long_close', 'long_ror', 'short_entry', 'short_open', 'short_close', 'short_ror']
+    df = df[columns]
+    df.to_csv('./report/richbtc_before_drop.csv', index=False)
     df = df.dropna()
+    df.to_csv('./report/richbtc_after_drop.csv', index=False)
+    
 
     # モデル (コメントアウトで他モデルも試してみてください)
     # model = RidgeCV(alphas=np.logspace(-7, 7, num=20))
@@ -300,23 +328,63 @@ def ml(df):
     # ウォークフォワード法
     # cv_indicies = list(TimeSeriesSplit().split(df))
     
-    df['y_pred_buy'] = my_cross_val_predict(model, df[features].values, df['y_buy'].values, cv=cv_indicies)
-    df['y_pred_sell'] = my_cross_val_predict(model, df[features].values, df['y_sell'].values, cv=cv_indicies)
-    
-    # 予測値が無い(nan)行をドロップ
-    df = df.dropna()
+    #df['long_ror_pred'] = my_cross_val_predict(model, df[features].values, df['long_ror'].values, cv=cv_indicies)
+    #df['short_ror_pred'] = my_cross_val_predict(model, df[features].values, df['short_ror'].values, cv=cv_indicies)
 
+    df['long_ror_pred'] = predict(model, df[features].values, df['long_ror'].values, 0.5)
+    df['short_ror_pred'] = predict(model, df[features].values, df['short_ror'].values, 0.5, debug=True)
+    # 予測値が無い(nan)行をドロップ
+    #df = df.dropna()
+    
     print('毎時刻、y_predがプラスのときだけトレードした場合の累積リターン')
-    df[df['y_pred_buy'] > 0]['y_buy'].cumsum().plot(label='買い')
-    df[df['y_pred_sell'] > 0]['y_sell'].cumsum().plot(label='売り')
-    (df['y_buy'] * (df['y_pred_buy'] > 0) + df['y_sell'] * (df['y_pred_sell'] > 0)).cumsum().plot(label='買い+売り')
+    df[df['long_ror_pred'] > 0]['long_ror'].cumsum().plot(label='買い')
+    df[df['short_ror_pred'] > 0]['short_ror'].cumsum().plot(label='売り')
+    #(df['y_buy'] * (df['y_pred_buy'] > 0) + df['y_sell'] * (df['y_pred_sell'] > 0)).cumsum().plot(label='買い+売り')
     plt.title('累積リターン')
     plt.legend(bbox_to_anchor=(1.05, 1))
     plt.show()
 
-    df.to_csv('./report/ml_richbtc_btcjpy_m15s.csv', index=False)
+
+    columns = ['timestamp', 'op', 'hi', 'cl', 'fee', 'buy_price', 'sell_price', 'buy_signal', 'sell_signal', 'long_entry', 'long_open', 'long_close', 'long_ror', 'short_entry', 'short_open', 'short_close', 'short_ror', 'long_ror_pred', 'short_ror_pred']
+    df2 = df[columns + features]
+    df2.to_csv('./report/ml_richbtc_' + name + '.csv', index=False)
     #df.to_pickle('df_fit.pkl') 
 
+
+def saveArray(array, filepath):
+    rows = array.shape[0]
+    if len(array.shape) > 1:
+        cols = array.shape[1]
+    else:
+        cols = 1
+    f = open(filepath, mode='w')
+    for row in range(rows):
+        s = ''
+        for col in range(cols):
+            if cols == 1:
+                s += str(array[row]) + ','
+            else:
+                s += str(array[row, col]) + ','
+        f.write(s + '\n')
+    f.close()
+        
+def predict(estimator, X, y, rate, debug=False):
+    n = len(X)
+    m = int (float(n) * rate)
+    trainX = X[0:m]
+    trainY = y[0:m]
+    predY = np.full(n, np.nan)
+    estimator.fit(trainX, trainY)
+    testX = X[m:]
+    testY = y[m:]
+    predY[m:] = estimator.predict(testX)
+    
+    if debug:
+        saveArray(trainX, './report/richbtc_trainX.csv')
+        saveArray(trainY, './report/richbtc_trainY.csv')
+        saveArray(testX, './report/richbtc_testX.csv')
+        saveArray(predY, './report/richbtc_pred.csv')
+    return predY
 
 # OOS予測値を計算
 def my_cross_val_predict(estimator, X, y=None, cv=None):
@@ -363,9 +431,12 @@ def readCsv(filepath):
     
 
 if __name__ == '__main__':
-    df = readCsv("./data/bitflyer/btcjpy_m15s.csv")
+    path = "./data/bitflyer/btcjpy_m15.csv"
+    df = readCsv(path)
     #df = df.dropna()
+    dirpath, filepath = os.path.split(path)
+    name, _ = os.path.splitext(filepath)
     df = calc_features(df)
-    trade(df)
-    ml(df)
+    trade(df, name)
+    ml(df, name)
     

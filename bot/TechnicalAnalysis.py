@@ -12,7 +12,7 @@ from scipy.stats import rankdata
 from const import BasicConst, IndicatorConst, ParameterConst
 import talib as ta
 from pandas_utility import df2dic
-from TechnicalLibrary import S_ATR, ATR
+from TechnicalLibrary import S_ATR
 
 import matplotlib.pyplot as plt
 
@@ -52,7 +52,7 @@ class TaLib:
 
     @classmethod
     def BB(cls, ohlcv: dict, window, sigma, key=c.CLOSE):
-        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        hilo =  (np.array(ohlcv[c.HIGH]) + np.array(ohlcv[c.LOW])) / 2.0
         (up, mid, low) = ta.BBANDS(np.array(ohlcv[key]), timeperiod=window, nbdevup=sigma, nbdevdn=sigma, matype=0)
         return (up - hilo, mid - hilo, low - hilo)
 
@@ -75,7 +75,7 @@ class TaLib:
 
     @classmethod
     def DEMA(cls, ohlcv:dict, window):
-        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        hilo =  (np.array(ohlcv[c.HIGH]) + np.array(ohlcv[c.LOW])) / 2.0
         return ta.DEMA(np.array(ohlcv[c.CLOSE]), timeperiod=window) - hilo
 
     @classmethod
@@ -92,7 +92,7 @@ class TaLib:
 
     @classmethod
     def EMA(cls, ohlcv: dict, window, key=c.CLOSE):
-        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        hilo =  (np.array(ohlcv[c.HIGH]) + np.array(ohlcv[c.LOW])) / 2.0
         return ta.EMA(np.array(ohlcv[key]), timeperiod=window) - hilo
 
     @classmethod
@@ -113,12 +113,12 @@ class TaLib:
 
     @classmethod
     def HT_TRENDLINE(cls, ohlcv: dict):
-        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        hilo =  (np.array(ohlcv[c.HIGH]) + np.array(ohlcv[c.LOW])) / 2.0
         return ta.HT_TRENDLINE(np.array(ohlcv[c.CLOSE])) - hilo
 
     @classmethod
     def KAMA(cls, ohlcv: dict, window):
-        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        hilo =  (np.array(ohlcv[c.HIGH]) + np.array(ohlcv[c.LOW])) / 2.0
         return ta.KAMA(np.array(ohlcv[c.CLOSE]), timeperiod=window) - hilo
 
     
@@ -132,7 +132,7 @@ class TaLib:
 
     @classmethod
     def LINEARREG_INTERCEPT(cls, ohlcv: dict, window):
-        return ta.LINEARREG_INTERCEPT(np.array(ohlcv[c.CLOSE]), timeperiod=window)
+        return ta.LINEARREG_INTERCEPT(np.array(ohlcv[c.CLOSE]), timeperiod=window) - np.array(ohlcv[c.CLOSE])
 
     @classmethod
     def LINEARREG_SLOPE(cls, ohlcv: dict, window):
@@ -140,7 +140,7 @@ class TaLib:
 
     @classmethod
     def MA(cls, ohlcv: dict, window, key=c.CLOSE):
-        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        hilo =  (np.array(ohlcv[c.HIGH]) + np.array(ohlcv[c.LOW])) / 2.0
         return ta.MA(np.array(ohlcv[key]), timeperiod=window) - hilo
     
     @classmethod
@@ -153,7 +153,7 @@ class TaLib:
 
     @classmethod
     def MIDPOINT(cls, ohlcv:dict, window):
-        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        hilo =  (np.array(ohlcv[c.HIGH]) + np.array(ohlcv[c.LOW])) / 2.0
         return ta.MIDPOINT(np.array(ohlcv[c.CLOSE]), timeperiod=window) - hilo
 
     @classmethod
@@ -194,7 +194,7 @@ class TaLib:
 
     @classmethod
     def SMA(cls, ohlcv: dict, window, key=c.CLOSE):
-        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        hilo =  (np.array(ohlcv[c.HIGH]) + np.array(ohlcv[c.LOW])) / 2.0
         return ta.SMA(np.array(ohlcv[key]), timeperiod=window) - hilo
 
     @classmethod
@@ -211,17 +211,17 @@ class TaLib:
 
     @classmethod
     def T3(cls, ohlcv: dict, window, vfactor=0):
-        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        hilo =  (np.array(ohlcv[c.HIGH]) + np.array(ohlcv[c.LOW])) / 2.0
         return ta.T3(np.array(ohlcv[c.CLOSE]), timeperiod=window, vfactor=vfactor) - hilo
 
     @classmethod
     def TEMA(cls, ohlcv: dict, window):
-        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        hilo =  (np.array(ohlcv[c.HIGH]) + np.array(ohlcv[c.LOW])) / 2.0
         return ta.TEMA(np.array(ohlcv[c.CLOSE]), timeperiod=window) - hilo
                     
     @classmethod
     def TRIMA(cls, ohlcv: dict, window):
-        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
+        hilo =  (np.array(ohlcv[c.HIGH]) + np.array(ohlcv[c.LOW])) / 2.0
         return ta.TRIMA(np.array(ohlcv[c.CLOSE]), timeperiod=window) - hilo
   
     @classmethod
@@ -266,8 +266,8 @@ class TaLib:
 
     @classmethod
     def WMA(cls, ohlcv: dict, window):
-        hilo =  (np.array(ohlcv[c.HIGH]) - np.array(ohlcv[c.LOW])) / 2.0
-        return ta.WMA(np.array(ohlcv[c.HIGH]), timeperiod=window) - hilo
+        hilo =  (np.array(ohlcv[c.HIGH]) + np.array(ohlcv[c.LOW])) / 2.0
+        return ta.WMA(np.array(ohlcv[c.CLOSE]), timeperiod=window) - hilo
 
 def fillZero(array):
     for i in range(len(array)):
@@ -313,14 +313,14 @@ class Indicator:
             return TaLib.SMA(ohlcv, self.params[p.WINDOW])
         if self.typ == t.EMA:
             return TaLib.EMA(ohlcv, self.params[p.WINDOW])
-        if self.typ == t.BB_UP:
-            (up, down, mid) = TaLib.BB(ohlcv, self.params[p.WINDOW], self.params[p.SIGMA])
+        if self.typ == t.BB_UPPER:
+            (up, mid, down) = TaLib.BB(ohlcv, self.params[p.WINDOW], self.params[p.SIGMA])
             return up
-        if self.typ == t.BB_DOWN:
-            (up, down, mid) = TaLib.BB(ohlcv, self.params[p.WINDOW], self.params[p.SIGMA])
+        if self.typ == t.BB_LOWER:
+            (up, mid, down) = TaLib.BB(ohlcv, self.params[p.WINDOW], self.params[p.SIGMA])
             return down
         if self.typ == t.BB_MID:
-            (up, down, mid) = TaLib.BB(ohlcv, self.params[p.WINDOW], self.params[p.SIGMA])
+            (up, mid, down) = TaLib.BB(ohlcv, self.params[p.WINDOW], self.params[p.SIGMA])
             return mid
         if self.typ == t.BB_RATIO:
             return TaLib.BBRATIO(ohlcv, self.params[p.WINDOW], self.params[p.SIGMA])
@@ -379,16 +379,16 @@ class Indicator:
             return TaLib.MFI(ohlcv, self.params[p.WINDOW])
         if self.typ == t.STDDEV:
             return TaLib.STDDEV(ohlcv, self.params[p.WINDOW], self.params[p.SIGMA])
-        if self.typ == t.STOCHASTIC_SLOWD:
-            slowk, slowd = TaLib.STOCHASTIC(ohlcv, self.params[p.FASTK], self.params[p.SLOWK], self.params[p.SLOWD])
-            return slowd
-        if self.typ == t.STOCHASTIC_SLOWK:
+        if self.typ == t.STOCHASTIC1_SLOWK:
             slowk, slowd = TaLib.STOCHASTIC(ohlcv, self.params[p.FASTK], self.params[p.SLOWK], self.params[p.SLOWD])
             return slowk
-        if self.typ == t.STOCHASTIC_FASTK:
+        if self.typ == t.STOCHASTIC2_SLOWD:
+            slowk, slowd = TaLib.STOCHASTIC(ohlcv, self.params[p.FASTK], self.params[p.SLOWK], self.params[p.SLOWD])
+            return slowd
+        if self.typ == t.STOCHASTIC3_FASTK:
             fastk, fastd = TaLib.STOCHASTICFAST(ohlcv, self.params[p.FASTK], self.params[p.FASTD])
             return fastk
-        if self.typ == t.STOCHASTIC_FASTD:
+        if self.typ == t.STOCHASTIC4_FASTD:
             fastk, fastd = TaLib.STOCHASTICFAST(ohlcv, self.params[p.FASTK], self.params[p.FASTD])
             return fastd
         if self.typ == t.ULTOSC:

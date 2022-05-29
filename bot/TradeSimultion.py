@@ -5,6 +5,7 @@ Created on Sun Feb  6 12:30:54 2022
 @author: docs9
 """
 
+import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -21,6 +22,7 @@ from const import BasicConst, IndicatorConst, ParameterConst
 from TechnicalAnalysis import Indicator
 from CandlePlot import CandlePlot, BandPlot, makeFig, gridFig, array2graphShape
 from Strategy import AtrAlternate
+from pandas_utility import dic2df
 
 c = BasicConst()
 ind = IndicatorConst()
@@ -56,7 +58,7 @@ features1 = {
                        }
     
 
-features2 =          {
+features0 =          {
                         'ADX':{ind.TYPE:ind.ADX, p.WINDOW: 14},
                         'ADXR':{ind.TYPE:ind.ADXR, p.WINDOW: 14},
                         'APO': {ind.TYPE:ind.APO, p.FAST: 12, p.SLOW: 26},
@@ -71,9 +73,9 @@ features2 =          {
                         'MFI': {ind.TYPE:ind.MFI, p.WINDOW:14},
                         'MOM': {ind.TYPE:ind.MOMENTUM, p.WINDOW: 10},
                         'RSI': {ind.TYPE:ind.RSI, p.WINDOW: 14},
-                        'STOCHASTIC_slowk': {ind.TYPE: ind.STOCHASTIC_SLOWK, p.FASTK: 5, p.SLOWK: 3, p.SLOWD: 3},
-                        'STOCHASTIC_slowd': {ind.TYPE: ind.STOCHASTIC_SLOWD, p.FASTK: 5, p.SLOWK: 3, p.SLOWD: 3},
-                        'STOCHASTIC_fastk': {ind.TYPE: ind.STOCHASTIC_FASTK, p.FASTK: 5, p.FASTD: 3},
+                        'STOCHASTIC1_slowk': {ind.TYPE: ind.STOCHASTIC1_SLOWK, p.FASTK: 5, p.SLOWK: 3, p.SLOWD: 3},
+                        'STOCHASTIC2_slowd': {ind.TYPE: ind.STOCHASTIC2_SLOWD, p.FASTK: 5, p.SLOWK: 3, p.SLOWD: 3},
+                        'STOCHASTIC3_fastk': {ind.TYPE: ind.STOCHASTIC3_FASTK, p.FASTK: 5, p.FASTD: 3},
                         'ULTOSC': {ind.TYPE: ind.ULTOSC, p.FAST: 7, p.MID: 14, p.SLOW: 28},
                         'WILLR': {ind.TYPE: ind.WILLR, p.WINDOW: 14},
                         'HT_DC_period': {ind.TYPE: ind.HT_DC_PERIOD},
@@ -88,8 +90,8 @@ features2 =          {
                         'LINEARREG_INTERCEPT': {ind.TYPE: ind.LINEARREG_INTERCEPT, p.WINDOW: 14},
                         'LINEARREG_SLOPE': {ind.TYPE: ind.LINEARREG_SLOPE, p.WINDOW: 14},
                         'STDDEV': {ind.TYPE: ind.STDDEV, p.WINDOW: 5, p.SIGMA: 1},
-                        'BB_UP': {ind.TYPE: ind.BB_UP, p.WINDOW: 5, p.SIGMA: 2},
-                        'BB_DOWN': {ind.TYPE: ind.BB_DOWN, p.WINDOW: 5, p.SIGMA: 2},
+                        'BB_UPPER': {ind.TYPE: ind.BB_UPPER, p.WINDOW: 5, p.SIGMA: 2},
+                        'BB_LOWER': {ind.TYPE: ind.BB_LOWER, p.WINDOW: 5, p.SIGMA: 2},
                         'BB_MID': {ind.TYPE: ind.BB_MID, p.WINDOW: 5, p.SIGMA: 2},
                         'DEMA': {ind.TYPE: ind.DEMA, p.WINDOW: 30},
                         'EMA': {ind.TYPE: ind.EMA, p.WINDOW: 30},
@@ -123,8 +125,11 @@ def trade(server, atr_coef, atr_window):
     #save('./trade_gold.csv', tohlcv, [c.TIME, c.OPEN, c.HIGH, c.LOW, c.CLOSE, 'ATR', 'long_price_open', 'long_price_close', 'short_price_open', 'short_price_close'])
 
     time = array2graphShape(tohlcv, [c.TIME])
-    long_profit_acc = tohlcv['long_profit_acc']
-    short_profit_acc = tohlcv['short_profit_acc']
+    long_profit_acc = tohlcv['long_ror_acc']
+    short_profit_acc = tohlcv['short_ror_acc']
+    
+    
+    
    
     (fig, axes) = gridFig([1], (12, 4))
     fig.subplots_adjust(hspace=0.6, wspace=0.4)
@@ -151,20 +156,25 @@ def isnanInVector(vector):
             return True
     return False
        
-def vectorize(data: dict, keys):
-    d = data[keys[0]]
+def vectorize(data: dict, x_keys, y_key):
+    d = data[x_keys[0]]
     n = len(d)
-    m = len(keys) - 1
-    data_list = []
-    for key in keys:
-        data_list.append(data[key])
+    m = len(x_keys) - 1
+    x_data = []
+    y_data = data[y_key]
+    for x_key in x_keys:
+        x_data.append(data[x_key])
     x = []
     y = []
     indices = []
     for i in range(n):
         vector = []
+        if i < n - 1:
+            vector.append(y_data[i + 1])
+        else:
+            vector.append(0)
         for j in range(m + 1):
-            vector.append(data_list[j][i])
+            vector.append(x_data[j][i])
         if  isnanInVector(vector) == False:
             y.append(vector[0])
             x.append(vector[1:])
@@ -198,28 +208,51 @@ def crossValidation(model, x, y, features):
     for [train_index, test_index] in indices:
         model.fit(x[train_index], y[train_index], feature_name=features)
         pred[test_index] = model.predict(x[test_index])
-        lgb.plot_importance(model, figsize=(12, 6))
+        #lgb.plot_importance(model, figsize=(8, 6))
+    
+    return pred
+
+
+def predict(model, x, y, features, rate, debug=False):
+    n = y.shape[0]
+    m = int(float(n) * rate)
+    pred = np.full(n, np.nan)
+    trainX = x[:m]
+    trainY = y[:m]
+    testX = x[m:]
+    model.fit(trainX, trainY, feature_name=features)
+    pred[m:] = model.predict(testX)
+    
+    if debug:
+        saveArray(trainX, '../report/mytrade_trainX.csv')
+        saveArray(trainY, '../report/mytrade_trainY.csv')
+        saveArray(testX, '../report/mytrade_testX.csv')
+        saveArray(pred, '../report/mytrade_pred.csv')
+    #lgb.plot_importance(model, figsize=(8, 6)
+    
     
     return pred
     
-def forceZero(predict, y):
-    length = y.shape[0]
-    for i in range(length):
-        if y[i] == 0.0:
-            predict[i] = 0.0
-    return
-    
 
-def filtered(ror, predict, is_long):
+def filtered(ror, predict, is_long, threshold=None):
     out = [0.0]
     for i in range(1, len(ror)):
+        value = predict[i - 1]
         if is_long:
-            if predict[i - 1] > 0:
+            if threshold is not None:
+                if value < threshold:
+                    out.append(0.0)
+                    continue
+            if value > 0:
                 out.append(ror[i])
             else:
                 out.append(0.0)
         else:
-            if predict[i - 1] < 0:
+            if threshold is not None:
+                if value > threshold * -1.0:
+                    out.append(0.0)
+                    continue
+            if value < 0:
                 out.append(ror[i])
             else:
                 out.append(0.0)
@@ -232,7 +265,83 @@ def index(array, indices):
         out.append(array[index])
     return out
 
-def fitting(features:dict, data:dict):
+
+def saveArray(array, filepath):
+    rows = array.shape[0]
+    if len(array.shape) > 1:
+        cols = array.shape[1]
+    else:
+        cols = 1
+    f = open(filepath, mode='w')
+    for row in range(rows):
+        s = ''
+        for col in range(cols):
+            if cols == 1:
+                s += str(array[row]) + ','
+            else:
+                s += str(array[row, col]) + ','
+        f.write(s + '\n')
+    f.close()
+    
+def isNan(vector):
+    for v in vector:
+        if v is None:
+            return True
+        if np.isnan(v):
+            return True
+    return False
+
+
+def dropNan(data: dict, target_keys=None) ->dict:
+    arrays = []
+    target_index = []
+    if target_keys is None:
+        target_keys = data.keys()
+    for i, key in enumerate(data.keys()):
+        arrays.append(data[key])
+        if key in target_keys:
+            target_index.append(i)
+
+    n = len(arrays[0])
+    rows = []
+    for row in range(n):
+        vector = []
+        for i in target_index:
+            vector.append(arrays[i][row])
+        if not isNan(vector):
+            rows.append(row)
+
+    slices = []
+    begin = None
+    old = None
+    for row in rows:
+        if begin is None:
+            begin = row
+            old = row
+        else:
+            if row > old + 1:
+                slices.append([begin, old])
+                begin = None
+            else:
+                old = row
+    if begin is not None:
+        slices.append([begin, old])
+            
+    dic = {}
+    for key in data.keys():
+        d = data[key]
+        ary = np.array([])
+        for b, e in slices:
+            d0 = d[b: e + 1]
+            ary = np.hstack([ary, d0])
+        dic[key] = ary
+    return dic
+    
+
+# short/long別々に学習して予測する。
+def fitting0(name, features:dict, data:dict):
+    
+
     indicators = Indicator.makeIndicators(features)
     for indicator in indicators:
         indicator.calc(data)
@@ -240,20 +349,81 @@ def fitting(features:dict, data:dict):
     ind2 = Indicator(ind.ROR, 'ROR')
     ind2.calc(data)
     
-    keys = ['ROR'] + list(features.keys())
-    x, y, indices = vectorize(data, keys)
+    #dic2df(data).to_csv('../report/mytrade_before_drop.csv', index=False)
+    
+    keys = sorted(list(features.keys()))
+    data = dropNan(data, target_keys = keys)
+    #dic2df(data1).to_csv('../report/mytrade_after_drop.csv', index=False)
+    
+    
     
     model = lgb.LGBMRegressor(n_jobs=-1, random_state=1)
-    predict = crossValidation(model, x, y, list(features.keys()))
-    forceZero(predict, y)
+    
+    y_key = 'short_ror'
+    x, y, indices = vectorize(data, keys, y_key)
+    #short_predict = crossValidation(model, x, y, list(features.keys()))
+    short_predict = predict(model, x, y, list(features.keys()), 0.5, debug=True)
+    evaluate(y, short_predict)
+    
+    short_ror = data['short_ror']
+    ml_short_ror = filtered(short_ror[indices], short_predict, False)
+    ml_short_ror_acc = Math.accumulate(ml_short_ror)
+
+    y_key = 'long_ror'
+    x, y, indices = vectorize(data, keys, y_key)
+    #long_predict = crossValidation(model, x, y, list(features.keys()))
+    long_predict = predict(model, x, y, list(features.keys()), 0.5)
+    evaluate(y, long_predict)
+
+    long_ror = data['long_ror']
+    ml_long_ror = filtered(long_ror[indices], long_predict, True)
+    ml_long_ror_acc = Math.accumulate(ml_long_ror)
+    
+    
+    time = index(data['time'], indices)
+    (fig, axes) = gridFig([1], (12, 4))
+    fig.subplots_adjust(hspace=0.6, wspace=0.4)
+    graph1= CandlePlot(fig, axes[0], 'ror acc fitted')
+    graph1.drawLine(time, ml_long_ror_acc, color='red')
+    graph1.drawLine(time, ml_short_ror_acc, color='blue') 
+    
+    
+    df = dic2df(data)
+    df2 = df.iloc[indices]
+    df2['short_predict'] = short_predict
+    df2['long_predict'] = long_predict
+    df2['ml_short_ror'] = ml_short_ror
+    df2['ml_long_ror'] = ml_long_ror
+    
+    columns = ['time', 'open', 'high', 'low', 'close', 'ATR', 'buy_price', 'sell_price', 'buy_signal', 'long_open', 'long_close', 'long_ror', 'long_ror_acc', 'sell_signal', 'short_open', 'short_close', 'short_ror', 'short_ror_acc', 'short_predict', 'long_predict', 'ml_short_ror', 'ml_long_ror'  ]
+    
+    feature_name = sorted(list(features.keys()))
+    df3 = df2[columns + feature_name]
+    df3.to_csv('../report/ml_mytrade_' + name + '.csv', index=False)
+    
+
+# long/short一緒に学習する。
+def fitting1(name, features:dict, data:dict):
+    indicators = Indicator.makeIndicators(features)
+    for indicator in indicators:
+        indicator.calc(data)
+        
+    ind2 = Indicator(ind.ROR, 'ROR')
+    ind2.calc(data)
+    
+    keys = sorted(list(features.keys()))
+    x, y, indices = vectorize(data, keys, 'ROR')
+    
+    model = lgb.LGBMRegressor(n_jobs=-1, random_state=1)
+    predict = crossValidation(model, x, y, keys)
     evaluate(y, predict)
     
     short_ror = data['short_ror']
-    new_short_ror = filtered(short_ror[indices], predict, False)
+    new_short_ror = filtered(short_ror[indices], predict, False, threshold=0.005)
     new_short_ror_acc = Math.accumulate(new_short_ror)
 
     long_ror = data['long_ror']
-    new_long_ror = filtered(long_ror[indices], predict, True)
+    new_long_ror = filtered(long_ror[indices], predict, True, threshold=0.005)
     new_long_ror_acc = Math.accumulate(new_long_ror)
     
     
@@ -265,10 +435,54 @@ def fitting(features:dict, data:dict):
     graph1.drawLine(time, new_short_ror_acc, color='blue') 
     
     
+    df = dic2df(data)
+    df2 = df.iloc[indices]
+    df2['predict'] = predict
+    df2['short_ror'] = new_short_ror
+    df2['long_ror'] = new_long_ror
+    df2.to_csv('../report/ml_mytrade2_' + name + '.csv', index=False)
+
+
+def MAE(vector1, vector2):
+    s = 0.0
+    count = 0
+    for v1, v2 in zip(vector1, vector2):
+        if np.isnan(v1) == False and np.isnan(v2) == False:
+            s += np.abs(v1 - v2)
+            count += 1
+    if count == 0:
+        return -1.0
+    else:
+        return s / float(count)
+        
+
+def MSE(vector1, vector2):
+    s = 0.0
+    count = 0
+    for v1, v2 in zip(vector1, vector2):
+        if np.isnan(v1) == False and np.isnan(v2) == False:
+            s += np.power(v1 - v2, 2.0)
+            count += 1
+    if count == 0:
+        return -1.0
+    else:
+        return s / float(count)    
+    
+def RMSE(vector1, vector2):
+    mse = MSE(vector1, vector2)
+    if mse < 0:
+        return -1.0
+    else:
+        return np.sqrt(mse)
+    
+    
+    
+    
+    
 def evaluate(y_test, y_pred):
-    mae = mean_absolute_error(y_test, y_pred)
-    mse = mean_squared_error(y_test, y_pred)
-    rmse = mean_squared_error(y_test, y_pred, squared=False)
+    mae = MAE(y_test, y_pred)
+    mse = MSE(y_test, y_pred)
+    rmse = RMSE(y_test, y_pred)
     model = LinearRegression(
                          fit_intercept=True,
                          normalize=False,
@@ -318,14 +532,24 @@ def testGemforex2():
     coef = 0.5
     window = 14
     data = trade(server, coef, window)    
-    fitting(features1, data)
+    fitting1(features1, data)
     
     
 def testBitfly():
     server = BitflyData('btcjpy', 'M15')
-    server.loadFromCsv('../data/bitflyer/btcjpy_m15.csv') 
+    path = '../data/bitflyer/btcjpy_m15.csv'
+    dirpath, filepath = os.path.split(path)
+    name, _ = os.path.splitext(filepath)
+    
+    server.loadFromCsv(path) 
     data = trade(server, 0.5, 14)
-    fitting(features2, data)
+    df = dic2df(data)
+    print(df.columns)
+    columns = ['time', 'open', 'high', 'low', 'close', 'ATR', 'buy_price', 'sell_price', 'buy_signal', 'long_open', 'long_close', 'long_ror', 'long_ror_acc', 'sell_signal', 'short_open', 'short_close', 'short_ror', 'short_ror_acc']
+    df2 = df[columns]
+    df2.to_csv('../report/mytrade2_' + name + '.csv')
+    fitting1(name, features1, data)
+    
     #print(data.keys())
     
     

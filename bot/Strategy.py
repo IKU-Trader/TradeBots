@@ -380,7 +380,7 @@ class AtrAlternate:
         
     def updatePosition(self, index):
         if len(self.time) < 2:
-            return
+            return (0, 0)
         
         time = self.time[-1]
         high = self.high[-1]
@@ -394,7 +394,7 @@ class AtrAlternate:
                 if pos.status != STATUS_ENTRY_ORDER:
                     positions.append(pos)
             self.positions = positions
-            return
+            return (0, 0)
         
         upper = int(self.close[-2] + self.coeff * price + 0.5)
         lower = int(self.close[-2] - self.coeff * price + 0.5)
@@ -430,6 +430,7 @@ class AtrAlternate:
             else:
                 positions.append(pos)
         self.positions = positions
+        return (upper, lower)
         
     def update(self, index, tohlc:list):
         t = tohlc[0]
@@ -446,14 +447,15 @@ class AtrAlternate:
         self.updateAtr(hi, lo, cl)
         
         if len(self.time) < 2:
-            return
-        self.updatePosition(index)
+            return (0, 0)
+        ret = self.updatePosition(index)
         
         # Order
         pos1 = ATRAleternatePosition(self.idno(), c.LONG, self.horizon)
         self.positions.append(pos1)
         pos2 = ATRAleternatePosition(self.idno(), c.SHORT, self.horizon)
         self.positions.append(pos2)
+        return ret
         
     # return order price
     def limitOrder(self, ohlcv:dict):
@@ -496,6 +498,15 @@ class AtrAlternate:
         
         return result
     
+    
+    def makeSignalArray(self, kind, length):
+        value = np.zeros(length)
+        for position in self.finished_positions:
+            if position.kind == kind:
+                value[position.index_open] = 1
+        return value
+    
+
 
     
     def position2array(self, kind, length, key:str):
@@ -516,10 +527,12 @@ class AtrAlternate:
         tohlcv['ATR'] = self.atr
         time = tohlcv[c.TIME]
         n = len(time)
-        tohlcv['long_price_open'] = self.position2array(c.LONG, n, 'price_open')
-        tohlcv['long_price_close'] = self.position2array(c.LONG, n, 'price_close')
-        tohlcv['short_price_open'] = self.position2array(c.SHORT, n, 'price_open')
-        tohlcv['short_price_close'] = self.position2array(c.SHORT, n, 'price_close')
+        tohlcv['buy_signal'] = self.makeSignalArray(c.LONG, n)
+        tohlcv['sell_signal'] = self.makeSignalArray(c.SHORT, n)
+        tohlcv['long_open'] = self.position2array(c.LONG, n, 'price_open')
+        tohlcv['long_close'] = self.position2array(c.LONG, n, 'price_close')
+        tohlcv['short_open'] = self.position2array(c.SHORT, n, 'price_open')
+        tohlcv['short_close'] = self.position2array(c.SHORT, n, 'price_close')
         tohlcv['long_profit'] = self.position2array(c.LONG, n, 'profit')
         tohlcv['short_profit'] = self.position2array(c.SHORT, n, 'profit')
         tohlcv['long_ror'] = self.position2array(c.LONG, n, 'ror')
@@ -539,9 +552,15 @@ class AtrAlternate:
         low = tohlcv[c.LOW]
         close = tohlcv[c.CLOSE]
         
+        buy_price = []
+        sell_price = []
         for i, tohlc in enumerate(zip(time, open, high, low, close)):
-            self.update(i, tohlc)
+            (lower, upper) = self.update(i, tohlc)
+            buy_price.append(upper)
+            sell_price.append(lower)
             
+        tohlcv['buy_price'] = buy_price
+        tohlcv['sell_price'] = sell_price
         #print('Total Trade num:', len(self.finished_positions), ' not closed num: ', len(self.positions))
         self.makeTradeData(tohlcv)
         return self.summary(tohlcv)
